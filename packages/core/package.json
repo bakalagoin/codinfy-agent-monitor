@@ -1,0 +1,26 @@
+{
+  "name": "@codinfy/agent-monitor-core",
+  "version": "0.1.0",
+  "description": "Core monitoring engine for Codinfy Agent Monitor",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "dependencies": {
+    "zod": "^3.25.67"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@codinfy/agent-monitor-tui",
+  "version": "0.1.0",
+  "description": "Ink terminal dashboard for Codinfy Agent Monitor",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "dependencies": {
+    "@codinfy/agent-monitor-core": "workspace:*",
+    "ink": "^6.0.1",
+    "react": "^19.1.0"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

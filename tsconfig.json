@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/tui" },
+    { "path": "./packages/server" },
+    { "path": "./packages/mcp-server" },
+    { "path": "./packages/adapter-claude-code" },
+    { "path": "./packages/adapter-codex" },
+    { "path": "./packages/adapter-cursor" },
+    { "path": "./packages/adapter-windsurf" },
+    { "path": "./packages/cli" }
+  ]
+}

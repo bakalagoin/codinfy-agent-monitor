@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "codinfy-agent-monitor": {
+      "command": "codinfy-agent-monitor",
+      "args": ["mcp"]
+    }
+  }
+}

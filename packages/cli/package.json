@@ -1,0 +1,31 @@
+{
+  "name": "codinfy-agent-monitor",
+  "version": "0.1.0",
+  "description": "Real-time AI agent monitoring for Claude Code, Codex, Cursor and MCP workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "codinfy-agent-monitor": "dist/index.js",
+    "codinfy-monitor": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@codinfy/agent-monitor-core": "workspace:*",
+    "@codinfy/agent-monitor-mcp": "workspace:*",
+    "@codinfy/agent-monitor-server": "workspace:*",
+    "@codinfy/agent-monitor-tui": "workspace:*",
+    "chalk": "^5.4.1",
+    "commander": "^14.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  }
+}
