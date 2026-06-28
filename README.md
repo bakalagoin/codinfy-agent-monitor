@@ -16,8 +16,8 @@ Observe agents, context, limits, workflows, Git, security and model economy from
   <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bakalagoin/codinfy-agent-monitor/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bakalagoin/codinfy-agent-monitor/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
-[![MCP](https://img.shields.io/badge/MCP-30_tools-20C997?style=for-the-badge&logo=probot&logoColor=white)](#-mcp-tool-api)
+[![Version](https://img.shields.io/badge/version-0.1.2-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
+[![MCP](https://img.shields.io/badge/MCP-40_tools-20C997?style=for-the-badge&logo=probot&logoColor=white)](#-mcp-tool-api)
 [![Node](https://img.shields.io/badge/Node.js-22.13+-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](#-requirements)
 [![License](https://img.shields.io/badge/license-Codinfy_Attribution-5D5FEF?style=for-the-badge&logo=readthedocs&logoColor=white)](./LICENSE)
 
@@ -252,16 +252,18 @@ codinfy-agent-monitor mcp
 }
 ```
 
-| Tool domain       | MCP tools                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Status**        | `monitor.status`, `monitor.open_dashboard`, `monitor.get_attribution`                                               |
-| **Agents**        | `monitor.list_agents`, `monitor.register_agent`, `monitor.update_agent_state`                                       |
-| **Usage**         | `monitor.get_context_usage`, `monitor.get_rate_limit_status`, `monitor.get_daily_usage`, `monitor.get_weekly_usage` |
-| **Model economy** | `monitor.get_model_advice`, `monitor.get_model_score`, `monitor.get_budget_status`, `monitor.get_economy_plan`      |
-| **Workflow**      | `monitor.create_task`, `monitor.update_task`, `monitor.list_tasks`, `monitor.get_workflow`, `monitor.timeline`      |
-| **Engineering**   | `monitor.git_status`, `monitor.test_status`, `monitor.build_status`, `monitor.environment_status`                   |
-| **Trust**         | `monitor.scan_secrets`, `monitor.review_before_commit`, `monitor.alerts`, `monitor.recommendations`                 |
-| **Reports**       | `monitor.export_report`, `monitor.get_cost_estimate`                                                                |
+| Tool domain       | MCP tools                                                                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**        | `monitor.status`, `monitor.open_dashboard`, `monitor.get_attribution`                                                                          |
+| **Agents**        | `monitor.list_agents`, `monitor.register_agent`, `monitor.update_agent_state`                                                                  |
+| **Usage**         | `monitor.get_context_usage`, `monitor.get_rate_limit_status`, `monitor.get_daily_usage`, `monitor.get_weekly_usage`                            |
+| **Model economy** | `monitor.get_model_advice`, `monitor.get_model_score`, `monitor.get_budget_status`, `monitor.get_economy_plan`                                 |
+| **Workflow**      | `monitor.create_task`, `monitor.update_task`, `monitor.list_tasks`, `monitor.get_workflow`, `monitor.timeline`                                 |
+| **Engineering**   | `monitor.git_status`, `monitor.git_diff`, `monitor.test_status`, `monitor.build_status`, `monitor.environment_status`, `monitor.check_command` |
+| **Release**       | `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`                                                        |
+| **Guided**        | `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`                                                |
+| **Trust**         | `monitor.scan_secrets`, `monitor.review_before_commit`, `monitor.alerts`, `monitor.recommendations`                                            |
+| **Reports**       | `monitor.export_report`, `monitor.get_cost_estimate`                                                                                           |
 
 The integration test launches the built stdio server, connects an MCP client, lists tools and calls `monitor.get_attribution`.
 
@@ -290,7 +292,7 @@ flowchart LR
   end
 
   subgraph Interfaces[Codinfy interfaces]
-    MCP[MCP stdio · 30 tools]
+    MCP[MCP stdio · 40 tools]
     CLI[CLI · /codinfy]
     TUI[Animated Ink TUI]
     WEB[Fastify + WebSocket]
