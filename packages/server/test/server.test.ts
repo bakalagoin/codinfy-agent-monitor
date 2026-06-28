@@ -16,6 +16,11 @@ describe('local dashboard server', () => {
     const dashboard = await app.inject('/dashboard');
     expect(dashboard.body).toContain('© CODINFY PLATFORMS SASU');
     expect(dashboard.body).toContain('/codinfy');
+    const review = await app.inject('/api/review');
+    expect(review.statusCode).toBe(200);
+    expect(review.json()).toHaveProperty('ready');
+    const git = await app.inject('/api/git');
+    expect(git.statusCode).toBe(200);
     await app.close();
     monitor.close();
     rmSync(root, { recursive: true, force: true });

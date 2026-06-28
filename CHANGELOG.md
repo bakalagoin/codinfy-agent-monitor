@@ -8,6 +8,12 @@
 - New beginner commands: `explain-error`, `simple-report` (traffic-light health), `github-guide`, and `learn`.
 - New Smart Model Router commands: `switch-model` (records intent, never auto-switches) and `model-rules` (configurable catalog + score thresholds).
 - Core helpers `getGitDiffStat` and `detectDangerousCommand` with a regression test.
+- 10 new MCP tools (now 40 total) mirroring the developer/guided commands (`monitor.git_diff`, `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`, `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`).
+- Enriched local dashboard with Git status, pre-commit health, and environment sections, active-nav highlighting, and `/api/git`, `/api/agents`, `/api/timeline`, `/api/review` endpoints.
+
+### Changed
+
+- Bumped all workspace package versions to `0.1.2`.
 
 ## 0.1.1 — 2026-06-28
 

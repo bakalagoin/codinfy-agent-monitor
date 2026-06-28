@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -6,6 +8,9 @@ import { z } from 'zod';
 import {
   AgentMonitor,
   CODINFY_ATTRIBUTION,
+  DEFAULT_MODEL_CATALOG,
+  detectDangerousCommand,
+  getGitDiffStat,
   getModelAdvice,
   redactSecrets,
   scanSecrets,
@@ -40,6 +45,16 @@ export const TOOL_NAMES = [
   'monitor.test_status',
   'monitor.build_status',
   'monitor.environment_status',
+  'monitor.git_diff',
+  'monitor.check_command',
+  'monitor.commit_message',
+  'monitor.pr_summary',
+  'monitor.docs_check',
+  'monitor.handoff',
+  'monitor.simple_report',
+  'monitor.explain_error',
+  'monitor.model_rules',
+  'monitor.switch_model',
   'monitor.get_attribution',
   'monitor.export_report',
 ] as const;
@@ -52,7 +67,7 @@ function result(value: unknown) {
 
 export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   const server = new McpServer(
-    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.0' },
+    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.2' },
     {
       instructions:
         'Use monitor.status first. Usage metrics may be estimated. Never expose secrets. Model changes require user confirmation. Preserve Codinfy attribution.',
@@ -373,6 +388,175 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
     'monitor.environment_status',
     { description: 'Detect Host, VPS, Shared, Docker, Localhost, tools, and project stack.' },
     async () => result(monitor.environment()),
+  );
+  server.registerTool(
+    'monitor.git_diff',
+    { description: 'Get a read-only Git diff summary (stat only).' },
+    async () => result({ diff: getGitDiffStat(monitor.store.projectRoot) }),
+  );
+  server.registerTool(
+    'monitor.check_command',
+    {
+      description: 'Detect dangerous shell commands before they run.',
+      inputSchema: { command: z.string().min(1) },
+    },
+    async ({ command }) => {
+      const detection = detectDangerousCommand(command);
+      return result({
+        ...detection,
+        advice: detection.dangerous
+          ? 'Dangerous command detected. Require Safe Guard confirmation before running.'
+          : 'No dangerous pattern detected.',
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.commit_message',
+    { description: 'Suggest a Conventional Commit message from current Git changes.' },
+    async () => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      const scope = snapshot.git.files.length === 1 ? snapshot.git.files[0] : undefined;
+      const type = review.secretFindings.length || snapshot.errors ? 'fix' : 'chore';
+      return result({
+        suggestion: `${type}${scope ? `(${scope})` : ''}: describe the change in imperative mood`,
+        changedFiles: snapshot.git.files.length,
+        ready: review.ready,
+        note: 'Suggestion only; review the diff and confirm before committing.',
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.pr_summary',
+    { description: 'Generate a pull-request summary from Git and the timeline.' },
+    async () => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      return result({
+        branch: snapshot.git.branch,
+        changedFiles: snapshot.git.files.length,
+        publicReady: review.ready,
+        tests: review.tests,
+        build: review.build,
+        secretFindings: review.secretFindings.length,
+        recentActivity: snapshot.timeline.slice(0, 5).map((event) => event.message),
+        signature: CODINFY_ATTRIBUTION.signature,
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.docs_check',
+    { description: 'Check that key documentation files are present.' },
+    async () => {
+      const required = [
+        'README.md',
+        'CHANGELOG.md',
+        'LICENSE',
+        'NOTICE.md',
+        'ATTRIBUTION.md',
+        'docs/installation.md',
+        'docs/usage.md',
+        'docs/mcp.md',
+        'docs/security.md',
+      ];
+      const missing = required.filter((file) => !existsSync(join(monitor.store.projectRoot, file)));
+      return result({ complete: missing.length === 0, missing });
+    },
+  );
+  server.registerTool(
+    'monitor.handoff',
+    { description: 'Get a concise session handoff summary for the next person or AI.' },
+    async () => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      return result({
+        project: snapshot.project,
+        session: snapshot.session,
+        tool: snapshot.tool,
+        workflowProgress: `${snapshot.workflowProgress}%`,
+        errors: snapshot.errors,
+        blockers: snapshot.blockers,
+        publicReady: review.ready,
+        latestAction: snapshot.latestAction,
+        recommendations: snapshot.advice.reasons,
+        signature: CODINFY_ATTRIBUTION.signature,
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.simple_report',
+    { description: 'Get a non-technical traffic-light health summary.' },
+    async () => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      const light = (ok: boolean, warn = false) => (ok ? 'green' : warn ? 'yellow' : 'red');
+      return result({
+        overall: review.ready ? 'green' : snapshot.errors ? 'red' : 'yellow',
+        security: light(
+          review.secretFindings.length === 0 && review.sensitiveFiles.length === 0,
+          review.sensitiveFiles.length > 0,
+        ),
+        tests: light(review.tests === 'passed', review.tests === 'not_run'),
+        build: light(review.build === 'passed', review.build === 'not_run'),
+        git: light(snapshot.git.available, true),
+        errors: snapshot.errors,
+        blockers: snapshot.blockers,
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.explain_error',
+    { description: 'Explain the most recent error in simple terms.' },
+    async () => {
+      const snapshot = monitor.snapshot();
+      const errorEvent = snapshot.timeline.find((event) => /error|fail|blocked/i.test(event.type));
+      return result({
+        hasError: snapshot.errors > 0 || Boolean(errorEvent),
+        latestError: errorEvent?.message ?? 'No error recorded in this session.',
+        nextStep: snapshot.blockers ? 'Resolve blockers first.' : 'Run tests, then review.',
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.model_rules',
+    { description: 'Get the configurable model catalog and score thresholds.' },
+    async () =>
+      result({
+        catalog: DEFAULT_MODEL_CATALOG,
+        scoreThresholds: {
+          '0-30': 'fast_cheap',
+          '31-60': 'standard_code',
+          '61-80': 'advanced_code',
+          '81-100': 'premium_reasoning',
+        },
+        note: 'Model names come from a configurable catalog, not hard-coded provider names.',
+      }),
+  );
+  server.registerTool(
+    'monitor.switch_model',
+    {
+      description: 'Record an intent to switch model category. Never switches automatically.',
+      inputSchema: {
+        category: z.enum([
+          'fast_cheap',
+          'standard_code',
+          'advanced_code',
+          'premium_reasoning',
+          'local_model',
+          'debug_model',
+          'security_model',
+          'vision_model',
+        ]),
+      },
+    },
+    async ({ category }) => {
+      monitor.store.recordEvent('model.switch_requested', `Requested category: ${category}`);
+      return result({
+        requested: category,
+        applied: false,
+        note: 'Model changes always require explicit user confirmation.',
+      });
+    },
   );
   server.registerTool(
     'monitor.get_attribution',

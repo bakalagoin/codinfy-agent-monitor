@@ -50,7 +50,7 @@ program
   .description(
     'Codinfy Agent Monitor — real-time AI agent, workflow, usage, Git and security monitoring.',
   )
-  .version('0.1.0')
+  .version('0.1.2')
   .option('-C, --project <path>', 'project root to monitor', process.cwd())
   .showHelpAfterError();
 

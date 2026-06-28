@@ -1,6 +1,6 @@
 {
   "name": "codinfy-agent-monitor",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Real-time AI agent monitoring for Claude Code, Codex, Cursor and MCP workflows",
   "type": "module",
   "main": "dist/index.js",

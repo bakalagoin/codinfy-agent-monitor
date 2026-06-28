@@ -8,6 +8,36 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-28 (V2 polish) — Cascade (Windsurf)
+
+**Type of work:** Implemented the three recommended next actions.
+
+1. **MCP tools** — exposed 10 new tools (now **40** total): `monitor.git_diff`,
+   `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`,
+   `monitor.docs_check`, `monitor.handoff`, `monitor.simple_report`,
+   `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`.
+2. **Version bump** — all 10 workspace `package.json` files + CLI `.version()` +
+   MCP server version set to `0.1.2` to match the changelog.
+3. **Dashboard enrichment** — added Git status, pre-commit health (traffic-light),
+   and environment sections to the web UI, active-nav highlighting, and new API
+   endpoints `/api/git`, `/api/agents`, `/api/timeline`, `/api/review`.
+
+**Tests added:** server test now asserts `/api/review` and `/api/git`.
+
+**Verification:** `build`, `lint`, `format:check`, `test` (16/16) all pass; MCP
+exposes 40 tools; dashboard serves the new sections (`Git status`,
+`Pre-commit health`) and endpoints return 200.
+
+**Files modified:** `packages/mcp-server/src/index.ts`, `packages/server/src/index.ts`,
+`packages/server/test/server.test.ts`, all `package.json` versions,
+`packages/cli/src/index.ts` (version), `docs/mcp.md`, `README.md` (prior),
+`CHANGELOG.md`, `AI_WORK_LOG.md`.
+
+**Recommended next actions:** Consider per-page dashboard routes with dedicated
+views (currently one rich SPA), and live adapter hooks for real-time agent events.
+
+---
+
 ## 2026-06-28 (compliance audit) — Cascade (Windsurf)
 
 **Type of work:** Full prompt-compliance audit + completion of missing commands.

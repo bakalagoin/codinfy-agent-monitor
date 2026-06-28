@@ -14,6 +14,8 @@ Tool families:
 - AI Credit Saver: advice, score, budget, cost, economy plan;
 - tasks/workflow: create, update, list, workflow, timeline;
 - operations: alerts, Codix Observer recommendations, Git, tests, build, environment;
+- developer: `monitor.git_diff`, `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`;
+- guided: `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`;
 - safety: review before commit, secret scan, attribution;
 - reporting: `monitor.export_report`.
 
