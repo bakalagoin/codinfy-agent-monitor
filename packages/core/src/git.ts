@@ -7,7 +7,7 @@ function git(cwd: string, args: string[]): string {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
     timeout: 10_000,
-  }).trim();
+  }).trimEnd();
 }
 
 export function getGitSummary(cwd: string): GitSummary {

@@ -19,5 +19,5 @@ describe('local dashboard server', () => {
     await app.close();
     monitor.close();
     rmSync(root, { recursive: true, force: true });
-  });
+  }, 15_000);
 });

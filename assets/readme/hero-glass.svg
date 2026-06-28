@@ -1,0 +1,122 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Codinfy Agent Monitor live mission control</title>
+  <desc id="desc">An animated glass dashboard showing agents, context, limits, security, Git and MCP activity.</desc>
+  <defs>
+    <linearGradient id="bg" x1="70" y1="20" x2="1140" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#050816"/>
+      <stop offset="0.48" stop-color="#0B1530"/>
+      <stop offset="1" stop-color="#071A20"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#7DE7FF"/>
+      <stop offset="1" stop-color="#20C997"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#8B7CFF"/>
+      <stop offset="1" stop-color="#54D6FF"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="0" cy="0" r="1" gradientTransform="translate(260 220) rotate(90) scale(255)">
+      <stop stop-color="#4DDFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#4DDFFF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" stroke="#8DEAFF" stroke-opacity="0.055"/>
+    </pattern>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.38"/>
+    </filter>
+    <clipPath id="clip"><rect x="1" y="1" width="1198" height="518" rx="30"/></clipPath>
+    <style>
+      text { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+      .pulse { animation: pulse 2.6s ease-in-out infinite; transform-origin: center; }
+      .pulse-delay { animation: pulse 2.6s .8s ease-in-out infinite; transform-origin: center; }
+      .flow { stroke-dasharray: 7 12; animation: flow 3s linear infinite; }
+      .scan { animation: scan 5s ease-in-out infinite; }
+      .blink { animation: blink 1s steps(2, end) infinite; }
+      .bar-a { animation: barA 4s ease-in-out infinite; }
+      .bar-b { animation: barB 4.8s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { opacity:.45; transform:scale(.96) } 50% { opacity:1; transform:scale(1.04) } }
+      @keyframes flow { to { stroke-dashoffset:-38 } }
+      @keyframes scan { 0%,100% { transform:translateY(-95px); opacity:0 } 15%,85% { opacity:.7 } 50% { transform:translateY(245px); opacity:.45 } }
+      @keyframes blink { 50% { opacity:0 } }
+      @keyframes barA { 0%,100% { width:132px } 50% { width:172px } }
+      @keyframes barB { 0%,100% { width:94px } 50% { width:146px } }
+      @media (prefers-reduced-motion: reduce) { * { animation:none!important } }
+    </style>
+  </defs>
+
+  <g clip-path="url(#clip)">
+    <rect width="1200" height="520" rx="30" fill="url(#bg)"/>
+    <rect width="1200" height="520" fill="url(#grid)"/>
+    <circle cx="260" cy="220" r="255" fill="url(#orb)"/>
+    <circle cx="1090" cy="40" r="215" fill="#845EF7" fill-opacity="0.08"/>
+    <circle cx="1010" cy="490" r="220" fill="#20C997" fill-opacity="0.07"/>
+    <path class="flow" d="M500 234C605 172 672 181 770 219" stroke="#61E4FF" stroke-opacity="0.36" stroke-width="2"/>
+
+    <g transform="translate(58 50)">
+      <rect width="374" height="48" rx="24" fill="#FFFFFF" fill-opacity="0.065" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <circle cx="26" cy="24" r="6" fill="#38E8B0" filter="url(#glow)"/>
+      <text x="44" y="29" fill="#C8F7FF" font-size="14" font-weight="700" letter-spacing="1.8">CODINFY PLATFORMS SASU</text>
+    </g>
+
+    <g transform="translate(60 133)">
+      <g filter="url(#shadow)">
+        <path d="M88 0H32C22 0 13 5 8 14L-20 62C-25 71-25 81-20 90L8 138C13 147 22 152 32 152H88C98 152 107 147 112 138L140 90C145 81 145 71 140 62L112 14C107 5 98 0 88 0Z" transform="translate(20 0)" fill="#0C1728" fill-opacity="0.82" stroke="url(#cyan)" stroke-width="3"/>
+        <text x="52" y="108" fill="url(#cyan)" font-size="90" font-weight="850">C</text>
+      </g>
+      <text x="208" y="48" fill="#F5FBFF" font-size="38" font-weight="800" letter-spacing="-1.2">Codinfy Agent Monitor</text>
+      <text x="210" y="83" fill="#88A8B9" font-size="17" font-weight="500">Real-time mission control for AI engineering teams</text>
+      <g transform="translate(210 106)">
+        <rect width="112" height="32" rx="16" fill="#5F3DC4" fill-opacity="0.23" stroke="#A99CFF" stroke-opacity="0.35"/>
+        <text x="17" y="21" fill="#C9C2FF" font-size="13" font-weight="700" class="mono">/codinfy</text>
+        <rect x="122" width="174" height="32" rx="16" fill="#087F5B" fill-opacity="0.2" stroke="#57E3B5" stroke-opacity="0.35"/>
+        <text x="139" y="21" fill="#8BF5D2" font-size="13" font-weight="700" class="mono">MCP · LIVE</text>
+      </g>
+    </g>
+
+    <g transform="translate(785 42)" filter="url(#shadow)">
+      <rect width="357" height="278" rx="20" fill="#0B1425" fill-opacity="0.76" stroke="#B9EEFF" stroke-opacity="0.15"/>
+      <path d="M0 48H357" stroke="#FFFFFF" stroke-opacity="0.09"/>
+      <circle cx="22" cy="24" r="5" fill="#FF6B6B"/><circle cx="40" cy="24" r="5" fill="#FFD43B"/><circle cx="58" cy="24" r="5" fill="#38D9A9"/>
+      <text x="82" y="29" fill="#718A9B" font-size="12" class="mono">codinfy-agent-monitor</text>
+      <text x="22" y="82" fill="#5DE3FF" font-size="13" class="mono">$ codinfy-agent-monitor status</text>
+      <text x="22" y="112" fill="#9FB4C1" font-size="12" class="mono">agents.active</text><text x="274" y="112" fill="#5EF0BC" font-size="12" text-anchor="end" class="mono">05 ●</text>
+      <text x="22" y="140" fill="#9FB4C1" font-size="12" class="mono">context.used</text><text x="274" y="140" fill="#E9F8FF" font-size="12" text-anchor="end" class="mono">68%</text>
+      <rect x="22" y="151" width="218" height="7" rx="3.5" fill="#FFFFFF" fill-opacity="0.07"/><rect class="bar-a" x="22" y="151" width="148" height="7" rx="3.5" fill="url(#cyan)"/>
+      <text x="22" y="188" fill="#9FB4C1" font-size="12" class="mono">daily.limit</text><text x="274" y="188" fill="#FFE69C" font-size="12" text-anchor="end" class="mono">81%</text>
+      <rect x="22" y="199" width="218" height="7" rx="3.5" fill="#FFFFFF" fill-opacity="0.07"/><rect class="bar-b" x="22" y="199" width="110" height="7" rx="3.5" fill="url(#violet)"/>
+      <text x="22" y="238" fill="#5EF0BC" font-size="12" class="mono">✓ secrets.clean   ✓ build.passed</text>
+      <text x="22" y="260" fill="#8FA7B5" font-size="12" class="mono">observer.ready</text><rect class="blink" x="137" y="250" width="8" height="13" rx="1" fill="#5DE3FF"/>
+      <rect class="scan" x="1" y="58" width="355" height="2" fill="url(#cyan)" opacity="0.45"/>
+    </g>
+
+    <g transform="translate(60 366)">
+      <g filter="url(#shadow)">
+        <rect width="252" height="102" rx="18" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
+        <circle class="pulse" cx="30" cy="29" r="9" fill="#36E3AD"/><text x="50" y="34" fill="#AFC6D2" font-size="13" font-weight="700">AGENTS</text>
+        <text x="24" y="75" fill="#F4FBFF" font-size="28" font-weight="800">5 active</text><text x="145" y="75" fill="#708B9C" font-size="13">· 3 idle</text>
+      </g>
+      <g transform="translate(270)" filter="url(#shadow)">
+        <rect width="252" height="102" rx="18" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
+        <circle class="pulse-delay" cx="30" cy="29" r="9" fill="#61DFFF"/><text x="50" y="34" fill="#AFC6D2" font-size="13" font-weight="700">WORKFLOW</text>
+        <text x="24" y="75" fill="#F4FBFF" font-size="28" font-weight="800">7 tasks</text><text x="145" y="75" fill="#708B9C" font-size="13">· live</text>
+      </g>
+      <g transform="translate(540)" filter="url(#shadow)">
+        <rect width="252" height="102" rx="18" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
+        <circle class="pulse" cx="30" cy="29" r="9" fill="#B197FC"/><text x="50" y="34" fill="#AFC6D2" font-size="13" font-weight="700">CREDIT SAVER</text>
+        <text x="24" y="75" fill="#F4FBFF" font-size="28" font-weight="800">−45%</text><text x="125" y="75" fill="#708B9C" font-size="13">estimated</text>
+      </g>
+      <g transform="translate(810)" filter="url(#shadow)">
+        <rect width="270" height="102" rx="18" fill="#FFFFFF" fill-opacity="0.055" stroke="#FFFFFF" stroke-opacity="0.11"/>
+        <circle class="pulse-delay" cx="30" cy="29" r="9" fill="#FFD43B"/><text x="50" y="34" fill="#AFC6D2" font-size="13" font-weight="700">SAFE GUARD</text>
+        <text x="24" y="75" fill="#F4FBFF" font-size="28" font-weight="800">ON</text><text x="78" y="75" fill="#708B9C" font-size="13">· local-first</text>
+      </g>
+    </g>
+  </g>
+  <rect x="1" y="1" width="1198" height="518" rx="29" stroke="#B6F0FF" stroke-opacity="0.15" stroke-width="2"/>
+</svg>
