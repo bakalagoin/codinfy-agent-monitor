@@ -10,6 +10,7 @@
 - Core helpers `getGitDiffStat` and `detectDangerousCommand` with a regression test.
 - 10 new MCP tools (now 40 total) mirroring the developer/guided commands (`monitor.git_diff`, `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`, `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`).
 - Enriched local dashboard with Git status, pre-commit health, and environment sections, active-nav highlighting, and `/api/git`, `/api/agents`, `/api/timeline`, `/api/review` endpoints.
+- Per-page dashboard views: each sidebar route (`/agents`, `/git`, `/timeline`, `/about`, …) now focuses on its relevant sections with a page title and active-nav state; added a Tasks & workflow section and an About card.
 
 ### Changed
 

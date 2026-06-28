@@ -8,6 +8,30 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-28 (per-page dashboard) — Cascade (Windsurf)
+
+**Type of work:** Continued V2 polish — per-page dashboard views.
+
+- The web dashboard now does client-side routing: each sidebar route
+  (`/agents`, `/git`, `/timeline`, `/environment`, `/about`, `/tasks`,
+  `/workflow`, `/health`, `/models`, `/budget`, …) focuses on its relevant
+  section(s) via `data-pages` blocks, shows a `#pageTitle`, and highlights the
+  active nav link. `/dashboard` still shows everything.
+- Added a **Tasks & workflow** section (workflow progress + task table) and an
+  **About** card (identity + export hint).
+- Extended the server test to assert per-page markup (`data-pages`,
+  `id="pageTitle"`) and that `/agents` returns 200.
+
+**Verification:** `build`, `lint`, `format:check`, `test` (16/16) pass; live
+smoke test confirms `/dashboard`, `/agents`, `/git`, `/environment`, `/about`
+all return 200 with the routed markup.
+
+**Note:** Adapters remain declarative metadata + a safe event-recording hook
+(`templates/claude-code/.claude/hooks/codinfy-agent-monitor.js`). Genuine live
+hooks depend on each host tool's runtime and can't be fully exercised locally.
+
+---
+
 ## 2026-06-28 (V2 polish) — Cascade (Windsurf)
 
 **Type of work:** Implemented the three recommended next actions.

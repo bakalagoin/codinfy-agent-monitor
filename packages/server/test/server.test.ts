@@ -16,6 +16,10 @@ describe('local dashboard server', () => {
     const dashboard = await app.inject('/dashboard');
     expect(dashboard.body).toContain('© CODINFY PLATFORMS SASU');
     expect(dashboard.body).toContain('/codinfy');
+    expect(dashboard.body).toContain('data-pages');
+    expect(dashboard.body).toContain('id="pageTitle"');
+    const agents = await app.inject('/agents');
+    expect(agents.statusCode).toBe(200);
     const review = await app.inject('/api/review');
     expect(review.statusCode).toBe(200);
     expect(review.json()).toHaveProperty('ready');
