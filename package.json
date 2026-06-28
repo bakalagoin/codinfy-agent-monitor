@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm lint && pnpm test && pnpm build && pnpm format:check",
+    "check": "pnpm lint && pnpm build && pnpm test && pnpm format:check && node packages/cli/dist/index.js secrets && node packages/cli/dist/index.js attribution-check",
     "codinfy": "node packages/cli/dist/index.js",
     "mcp": "node packages/mcp-server/dist/index.js"
   },

@@ -8,6 +8,53 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-28 (later) — Cascade (Windsurf)
+
+**Type of work:** Verification, fix, and hardening of the validation pipeline.
+
+**Tasks verified:**
+
+- `git status`, project structure, dependencies (already installed via corepack pnpm).
+- `build`, `test` (15/15), `lint`, `format:check` — all pass.
+- CLI: `status`, `about`, `limits`, `agents`, `context`, `saver`, `budget`, `git`,
+  `environment`, `review`, and `model-advice` (README task → score 15/`fast_cheap`;
+  security task → score 75/`advanced_code`).
+- `secrets` → clean (no values leaked); `attribution-check` → valid.
+- MCP server (`packages/mcp-server/dist/index.js`) starts with no errors.
+- Local dashboard (`web`): `/healthz` 200, `/api/status` 200, `/dashboard` 200.
+- License files (`LICENSE`, `NOTICE.md`, `ATTRIBUTION.md`) present; `.gitignore`
+  matches the required ignore list; CI workflow already correctly ordered.
+
+**Errors found:**
+
+- Root `package.json` `check` script ran `test` **before** `build`. On a clean
+  clone (where `dist/` is git-ignored and absent), the CLI test that executes
+  `packages/cli/dist/index.js` could fail.
+
+**Corrections applied:**
+
+- Reordered and extended the `check` script to:
+  `pnpm lint && pnpm build && pnpm test && pnpm format:check && node packages/cli/dist/index.js secrets && node packages/cli/dist/index.js attribution-check`.
+- Added a `0.1.1` entry to `CHANGELOG.md`.
+
+**Commands executed (local):** `corepack pnpm clean`, `corepack pnpm lint`,
+`corepack pnpm build`, `corepack pnpm test`, `corepack pnpm format:check`,
+plus the CLI `secrets`/`attribution-check`/`review` and MCP/web smoke tests.
+
+**Final result:** All checks green after the fix; build runs before tests
+(validated by cleaning `dist/` first). Attribution intact, no secrets exposed.
+
+**Note for other AIs:** On this Windows host `pnpm` is not on PATH; use
+`corepack pnpm <script>`. The nested `pnpm` calls inside `check` work on any
+environment where `pnpm` is on PATH (clean clones and the `pnpm/action-setup` CI).
+
+**Recommended next actions:**
+
+- Optionally bump package versions to `0.1.1` to match the changelog before a tag.
+- Continue optional V2 polish (richer dashboard pages, live adapter hooks).
+
+---
+
 ## 2026-06-28 — Cascade (Windsurf)
 
 **Type of work:** Verification + coordination bootstrap (no functional code changes).
