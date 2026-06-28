@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 — 2026-06-28
+
+### Added
+
+- New developer commands: `diff`, `commit-message`, `pr`, `docs-check`, `handoff`, and `check-command` (dangerous-command detection).
+- New beginner commands: `explain-error`, `simple-report` (traffic-light health), `github-guide`, and `learn`.
+- New Smart Model Router commands: `switch-model` (records intent, never auto-switches) and `model-rules` (configurable catalog + score thresholds).
+- Core helpers `getGitDiffStat` and `detectDangerousCommand` with a regression test.
+
 ## 0.1.1 — 2026-06-28
 
 ### Fixed

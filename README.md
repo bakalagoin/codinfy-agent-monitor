@@ -167,12 +167,18 @@ codinfy-agent-monitor health
 
 ```bash
 codinfy-agent-monitor git
+codinfy-agent-monitor diff
 codinfy-agent-monitor tests --run
 codinfy-agent-monitor build --run
 codinfy-agent-monitor secrets
+codinfy-agent-monitor check-command "git push --force"
 codinfy-agent-monitor attribution-check
 codinfy-agent-monitor review
 codinfy-agent-monitor public-ready
+codinfy-agent-monitor commit-message
+codinfy-agent-monitor pr
+codinfy-agent-monitor docs-check
+codinfy-agent-monitor handoff
 ```
 
 </details>
@@ -186,10 +192,29 @@ codinfy-agent-monitor budget
 codinfy-agent-monitor cost
 codinfy-agent-monitor model-score "audit the authentication architecture"
 codinfy-agent-monitor model-advice "update the README"
+codinfy-agent-monitor model-rules
+codinfy-agent-monitor switch-model standard_code
 codinfy-agent-monitor economy-plan
 ```
 
 The router recommends configurable categories — `fast_cheap`, `standard_code`, `advanced_code` or `premium_reasoning` — instead of hard-coding provider model names. **It never changes the active model without confirmation.**
+
+</details>
+
+<details>
+<summary><strong>Beginner & guided mode</strong></summary>
+
+```bash
+codinfy-agent-monitor beginner
+codinfy-agent-monitor next
+codinfy-agent-monitor checklist
+codinfy-agent-monitor glossary
+codinfy-agent-monitor explain-error
+codinfy-agent-monitor simple-report
+codinfy-agent-monitor install-guide
+codinfy-agent-monitor github-guide
+codinfy-agent-monitor learn
+```
 
 </details>
 

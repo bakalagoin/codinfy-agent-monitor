@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -6,8 +8,11 @@ import {
   AgentMonitor,
   CODINFY_ATTRIBUTION,
   CODINFY_SOCIALS,
+  DEFAULT_MODEL_CATALOG,
   checkAttribution,
+  detectDangerousCommand,
   formatAttribution,
+  getGitDiffStat,
   getModelAdvice,
   redactSecrets,
   scanSecrets,
@@ -446,6 +451,227 @@ program
     console.log(chalk.cyan(formatAttribution()));
     console.table(CODINFY_SOCIALS);
   });
+
+program
+  .command('diff')
+  .description('Show a read-only Git diff summary (stat only).')
+  .action(() => print(getGitDiffStat(program.opts<{ project: string }>().project)));
+program
+  .command('commit-message')
+  .description('Suggest a Conventional Commit message from the current Git changes.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      const scope = snapshot.git.files.length === 1 ? snapshot.git.files[0] : undefined;
+      const type = review.secretFindings.length || snapshot.errors ? 'fix' : 'chore';
+      print({
+        suggestion: `${type}${scope ? `(${scope})` : ''}: describe the change in imperative mood`,
+        changedFiles: snapshot.git.files.length,
+        ready: review.ready,
+        note: 'Suggestion only; review the diff and confirm before committing.',
+      });
+    }),
+  );
+program
+  .command('pr')
+  .description('Generate a pull-request summary from Git and the activity timeline.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      print({
+        branch: snapshot.git.branch,
+        changedFiles: snapshot.git.files.length,
+        publicReady: review.ready,
+        tests: review.tests,
+        build: review.build,
+        secretFindings: review.secretFindings.length,
+        recentActivity: snapshot.timeline.slice(0, 5).map((event) => event.message),
+        signature: CODINFY_ATTRIBUTION.signature,
+      });
+    }),
+  );
+program
+  .command('docs-check')
+  .description('Check that key documentation files are present.')
+  .action(() => {
+    const root = program.opts<{ project: string }>().project;
+    const required = [
+      'README.md',
+      'CHANGELOG.md',
+      'LICENSE',
+      'NOTICE.md',
+      'ATTRIBUTION.md',
+      'docs/installation.md',
+      'docs/usage.md',
+      'docs/mcp.md',
+      'docs/security.md',
+    ];
+    const missing = required.filter((file) => !existsSync(join(root, file)));
+    print({ complete: missing.length === 0, missing });
+    if (missing.length) process.exitCode = 1;
+  });
+program
+  .command('handoff')
+  .description('Print a concise session handoff summary for the next person or AI.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      print({
+        project: snapshot.project,
+        session: snapshot.session,
+        tool: snapshot.tool,
+        workflowProgress: `${snapshot.workflowProgress}%`,
+        activeAgents: snapshot.agents.filter((agent) => agent.status !== 'idle').length,
+        errors: snapshot.errors,
+        blockers: snapshot.blockers,
+        publicReady: review.ready,
+        latestAction: snapshot.latestAction,
+        recommendations: snapshot.advice.reasons,
+        signature: CODINFY_ATTRIBUTION.signature,
+      });
+    }),
+  );
+program
+  .command('memory [action]')
+  .description('Save a redacted session memory digest (action: save).')
+  .action((action?: string) =>
+    withMonitor((monitor) => {
+      if (action && action !== 'save') throw new Error('Only "save" is supported.');
+      const path = monitor.exportReport(true);
+      monitor.store.recordEvent('memory.saved', 'Session memory digest saved');
+      print({ saved: path, signature: CODINFY_ATTRIBUTION.signature });
+    }),
+  );
+program
+  .command('explain-error')
+  .description('Explain the most recent error in simple terms.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      const errorEvent = snapshot.timeline.find((event) => /error|fail|blocked/i.test(event.type));
+      print({
+        hasError: snapshot.errors > 0 || Boolean(errorEvent),
+        latestError: errorEvent?.message ?? 'No error recorded in this session.',
+        plainExplanation:
+          snapshot.errors > 0
+            ? 'An agent reported an error. Open the timeline, read the last action, fix the cause, then re-run tests.'
+            : 'Nothing is failing right now. Keep going and run tests before committing.',
+        nextStep: snapshot.blockers ? 'Resolve blockers first.' : 'Run tests, then review.',
+      });
+    }),
+  );
+program
+  .command('simple-report')
+  .description('Show a non-technical traffic-light health summary.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      const review = monitor.review();
+      const light = (ok: boolean, warn = false) => (ok ? '🟢' : warn ? '🟡' : '🔴');
+      print(
+        [
+          `Overall: ${review.ready ? '🟢 Good' : snapshot.errors ? '🔴 Problem' : '🟡 Attention'}`,
+          `Security: ${light(review.secretFindings.length === 0 && review.sensitiveFiles.length === 0, review.sensitiveFiles.length > 0)}`,
+          `Tests: ${light(review.tests === 'passed', review.tests === 'not_run')}`,
+          `Build: ${light(review.build === 'passed', review.build === 'not_run')}`,
+          `Git: ${light(snapshot.git.available, true)}`,
+          `Errors: ${snapshot.errors} · Blockers: ${snapshot.blockers}`,
+          CODINFY_ATTRIBUTION.signature,
+        ].join('\n'),
+      );
+    }),
+  );
+program
+  .command('github-guide')
+  .description('Show beginner-friendly steps to publish on GitHub safely.')
+  .action(() =>
+    print(
+      [
+        '1. Run codinfy-agent-monitor review and fix any findings.',
+        '2. Confirm git status and git diff show only intended changes.',
+        '3. Ensure .env and secrets are git-ignored (never commit them).',
+        '4. git add . && git commit -m "feat: ..." with a clear message.',
+        '5. Create the public repo: gh repo create codinfy-agent-monitor --public --source=. --push',
+        '6. Or set the remote, then git push -u origin main.',
+        CODINFY_ATTRIBUTION.signature,
+      ].join('\n'),
+    ),
+  );
+program
+  .command('learn')
+  .description('Show short learning tips for working with AI agents.')
+  .action(() =>
+    print([
+      'Watch context usage; summarize before it gets too high.',
+      'Match the model category to the task with model-advice.',
+      'Always run review before committing.',
+      'Never paste secrets into prompts; the scanner redacts them anyway.',
+      'Use the timeline to understand what each agent did.',
+    ]),
+  );
+program
+  .command('protect [state]')
+  .description('Alias of safe: enable/disable Safe Guard confirmations.')
+  .action((state?: string) =>
+    withMonitor((monitor) => {
+      if (state) {
+        if (!['on', 'off'].includes(state)) throw new Error('Protect state must be on or off.');
+        monitor.store.updateConfig({ safeGuard: state === 'on' });
+      }
+      print({
+        safeGuard: monitor.store.getConfig().safeGuard,
+        policy:
+          'No destructive action, push, .env edit, or automatic model switch without confirmation.',
+      });
+    }),
+  );
+program
+  .command('check-command <command...>')
+  .description('Detect dangerous shell commands before running them.')
+  .action((command: string[]) => {
+    const result = detectDangerousCommand(command.join(' '));
+    print({
+      ...result,
+      advice: result.dangerous
+        ? 'Dangerous command detected. Enable Safe Guard and confirm manually before running.'
+        : 'No dangerous pattern detected.',
+    });
+    if (result.dangerous) process.exitCode = 1;
+  });
+program
+  .command('switch-model <category>')
+  .description('Record an intent to switch model category (never switches automatically).')
+  .action((category: string) =>
+    withMonitor((monitor) => {
+      const categories = Object.keys(DEFAULT_MODEL_CATALOG);
+      if (!categories.includes(category))
+        throw new Error(`Category must be one of: ${categories.join(', ')}.`);
+      monitor.store.recordEvent('model.switch_requested', `Requested category: ${category}`);
+      print({
+        requested: category,
+        applied: false,
+        note: 'Model changes always require explicit user confirmation in your AI tool.',
+      });
+    }),
+  );
+program
+  .command('model-rules')
+  .description('Show the configurable model catalog and scoring thresholds.')
+  .action(() =>
+    print({
+      catalog: DEFAULT_MODEL_CATALOG,
+      scoreThresholds: {
+        '0-30': 'fast_cheap',
+        '31-60': 'standard_code',
+        '61-80': 'advanced_code',
+        '81-100': 'premium_reasoning',
+      },
+      note: 'Model names come from a configurable catalog, not hard-coded provider names.',
+    }),
+  );
 
 program
   .command('web')

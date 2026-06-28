@@ -8,6 +8,7 @@ import {
   CODINFY_ATTRIBUTION,
   categoryForScore,
   checkAttribution,
+  detectDangerousCommand,
   getModelAdvice,
   redactSecrets,
   renderMarkdownReport,
@@ -124,5 +125,12 @@ describe('Codinfy Agent Monitor core', () => {
 
   it('finds no missing mandatory attribution in the repository root', () => {
     expect(checkAttribution(process.cwd())).toEqual({});
+  });
+
+  it('detects dangerous shell commands and clears safe ones', () => {
+    expect(detectDangerousCommand('rm -rf /').dangerous).toBe(true);
+    expect(detectDangerousCommand('git push --force origin main').dangerous).toBe(true);
+    expect(detectDangerousCommand('DROP DATABASE prod;').matches.length).toBeGreaterThan(0);
+    expect(detectDangerousCommand('pnpm build').dangerous).toBe(false);
   });
 });

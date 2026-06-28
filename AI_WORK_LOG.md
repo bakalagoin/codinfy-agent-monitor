@@ -8,6 +8,37 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-28 (compliance audit) — Cascade (Windsurf)
+
+**Type of work:** Full prompt-compliance audit + completion of missing commands.
+
+**Audit result:** Project is conformant with all 19 prompt specs. Identity,
+architecture, `/codinfy`, MCP (29 tools), TUI bars, AI Credit Saver / Smart Model
+Router, Host/VPS/Shared/Other environment, auto language, dev + beginner features,
+attribution, license protection, docs, and CI are all present.
+
+**Gaps found (expanded DEV/BEGINNER specs) and completed:**
+
+- Added CLI: `diff`, `commit-message`, `pr`, `docs-check`, `handoff`,
+  `check-command` (dangerous-command detection), `explain-error`,
+  `simple-report` (traffic-light), `github-guide`, `learn`, `protect`,
+  `memory`, `switch-model`, `model-rules`.
+- Added core helpers `getGitDiffStat` (git.ts) and `detectDangerousCommand`
+  (security.ts), plus a regression test (16 tests now pass).
+- Updated `README.md` command sections and `CHANGELOG.md` (0.1.2).
+
+**Commands executed:** `build`, `test` (16/16), `lint`, `format`/`format:check`,
+plus CLI `simple-report`, `check-command`, `commit-message`, `docs-check`,
+`model-rules`, `switch-model`, `secrets` (clean), `attribution-check` (valid),
+`review` (ready).
+
+**Final result:** All green. Attribution intact, no secrets exposed, public-ready.
+
+**Recommended next actions:** Optionally surface the new dev/beginner helpers as
+MCP tools; bump package versions to match the changelog before tagging.
+
+---
+
 ## 2026-06-28 (later) — Cascade (Windsurf)
 
 **Type of work:** Verification, fix, and hardening of the validation pipeline.

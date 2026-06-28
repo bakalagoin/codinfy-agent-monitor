@@ -10,6 +10,22 @@ function git(cwd: string, args: string[]): string {
   }).trimEnd();
 }
 
+export function getGitDiffStat(cwd: string): string {
+  try {
+    const unstaged = git(cwd, ['diff', '--stat']);
+    const staged = git(cwd, ['diff', '--cached', '--stat']);
+    const parts = [
+      staged ? `Staged changes:\n${staged}` : '',
+      unstaged ? `Unstaged changes:\n${unstaged}` : '',
+    ].filter(Boolean);
+    return parts.length ? parts.join('\n\n') : 'No tracked changes to diff.';
+  } catch (error) {
+    return error instanceof Error
+      ? `Git diff unavailable: ${error.message}`
+      : 'Git diff unavailable';
+  }
+}
+
 export function getGitSummary(cwd: string): GitSummary {
   try {
     const branch = git(cwd, ['branch', '--show-current']) || 'detached';
