@@ -1,4 +1,9 @@
-CODINFY AGENT MONITOR ATTRIBUTION LICENSE 1.0
+╭──────────────────────────────────────────────────────────────────────────────╮
+│                    CODINFY AGENT MONITOR                                     │
+│                    ATTRIBUTION LICENSE 1.0                                   │
+│                                                                              │
+│      /codinfy  ·  codinfy-agent-monitor  ·  codinfy.com                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
 Copyright © CODINFY PLATFORMS SASU. All rights reserved for branding,
 attribution, command names, and product identity.
@@ -10,12 +15,31 @@ Website: codinfy.com
 Created by CODINFY PLATFORMS SASU
 Bakala Goin — Founder & CEO
 
+────────────────────────────────────────────────────────────────────────────────
+VISUAL SUMMARY — FOR ORIENTATION ONLY
+The binding terms below control if this summary differs.
+────────────────────────────────────────────────────────────────────────────────
+
+  ✓ VIEW & USE      Inspect, install and use the project.
+  ✓ CONTRIBUTE      Submit issues and pull requests.
+  ✓ FORK & ADAPT    Adapt the code for personal or internal use.
+  ⛨ ATTRIBUTE       Keep the complete Codinfy identity and social credits.
+  ✕ DO NOT REMOVE   Product, command, MCP, creator or founder identity.
+  ✕ DO NOT REBRAND  A modified version as the unmodified original.
+
+This license contains enhanced brand and attribution restrictions. It may be
+classified as source-available rather than OSI open source.
+
+════════════════════════════════════════════════════════════════════════════════
 1. PERMISSIONS
+════════════════════════════════════════════════════════════════════════════════
 
 You may view, use, install, copy, contribute to, fork, and adapt the source code
 for personal or internal use, and you may submit issues and pull requests.
 
+════════════════════════════════════════════════════════════════════════════════
 2. MANDATORY ATTRIBUTION
+════════════════════════════════════════════════════════════════════════════════
 
 Every copy, fork, distribution, interface, documentation set, report, export,
 and modified version must retain, visibly and accurately:
@@ -36,7 +60,9 @@ LinkedIn: Codinfy company/codinfyen; Bakala Goin bakala-goin
 TikTok: Bakala Goin @bakalagoin
 X (Twitter): Bakala Goin @bakalagoin
 
+════════════════════════════════════════════════════════════════════════════════
 3. RESTRICTIONS
+════════════════════════════════════════════════════════════════════════════════
 
 Without prior written authorization from CODINFY PLATFORMS SASU, you may not:
 
@@ -49,25 +75,40 @@ c. resell or create a derivative product after removing or replacing Codinfy
 d. remove or alter LICENSE, NOTICE.md, ATTRIBUTION.md, or About attribution;
 e. use Codinfy trademarks in a way that implies endorsement beyond this license.
 
+════════════════════════════════════════════════════════════════════════════════
 4. USER INTERFACES AND EXPORTS
+════════════════════════════════════════════════════════════════════════════════
 
 The main terminal interface, local dashboard, About screen, and generated
 reports must display: © CODINFY PLATFORMS SASU · codinfy.com
 
+════════════════════════════════════════════════════════════════════════════════
 5. CONTRIBUTIONS
+════════════════════════════════════════════════════════════════════════════════
 
 Contributions must preserve this license and all mandatory identity elements.
 
+════════════════════════════════════════════════════════════════════════════════
 6. NO WARRANTY
+════════════════════════════════════════════════════════════════════════════════
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
 FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
 
+════════════════════════════════════════════════════════════════════════════════
 7. LICENSE CLASSIFICATION AND LEGAL REVIEW
+════════════════════════════════════════════════════════════════════════════════
 
 Because this license imposes enhanced brand and attribution restrictions, some
 registries or communities may classify it as source-available rather than OSI
 open source. This text is a project license template and should be reviewed by
 qualified legal counsel before being relied on for high-stakes legal use.
+
+────────────────────────────────────────────────────────────────────────────────
+Created by CODINFY PLATFORMS SASU
+Bakala Goin — Founder & CEO
+Codinfy Agent Monitor · /codinfy · codinfy-agent-monitor
+© CODINFY PLATFORMS SASU · codinfy.com
+────────────────────────────────────────────────────────────────────────────────

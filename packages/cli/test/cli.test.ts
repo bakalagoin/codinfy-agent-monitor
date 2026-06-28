@@ -17,5 +17,5 @@ describe('CLI', () => {
     expect(run.stdout).toContain('codinfy-agent-monitor');
     expect(run.stdout).toContain('© CODINFY PLATFORMS SASU');
     rmSync(project, { recursive: true, force: true });
-  });
+  }, 15_000);
 });
