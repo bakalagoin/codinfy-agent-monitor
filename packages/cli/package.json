@@ -23,7 +23,7 @@
     "@codinfy/agent-monitor-server": "workspace:*",
     "@codinfy/agent-monitor-tui": "workspace:*",
     "chalk": "^5.4.1",
-    "commander": "^14.0.0"
+    "commander": "^15.0.0"
   },
   "scripts": {
     "build": "tsc -b"
