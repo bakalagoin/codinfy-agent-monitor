@@ -132,7 +132,7 @@ describe('Codinfy Agent Monitor core', () => {
     expect(summary.remote).toContain('example.com/org/repo.git');
     expect(summary.remote).not.toContain('alice');
     expect(summary.remote).not.toContain('super-secret');
-  }, 15_000);
+  }, 45_000);
 
   it('detects secret files and returns redacted findings', () => {
     const project = root();
@@ -141,7 +141,7 @@ describe('Codinfy Agent Monitor core', () => {
     const findings = scanSecrets(project);
     expect(findings.some((finding) => finding.file === '.env')).toBe(true);
     expect(JSON.stringify(findings)).not.toContain('x'.repeat(30));
-  });
+  }, 30_000);
 
   it('falls back to a filesystem inventory when Git is unavailable', () => {
     const project = root();

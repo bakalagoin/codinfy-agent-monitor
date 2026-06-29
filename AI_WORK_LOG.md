@@ -8,6 +8,24 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-29 (dashboard + audit public V1.3) — Codex
+
+**Type de travail :** redesign du dashboard, audit de conformité complet, corrections sécurité et validation publique.
+
+- Remplacé le dashboard par un cockpit glass responsive avec routes officielles `/codinfy` et `/codinfy-agent-monitor`, métriques animées, workflow rail, agent radar, timeline, AI Credit Saver, santé de release, Git, environnement, attribution et réseaux sociaux Codinfy.
+- Corrigé le JavaScript de route qui empêchait les données live de s’afficher ; ajouté le chargement progressif des contrôles lourds.
+- Durci Host/Origin WebSocket, quotas, headers navigateur, recherche d’exécutables, hook Claude, scanner de secrets, persistance/redaction, symlinks, rapports, terminal et CI.
+- Corrigé la propagation globale `--project`, ajouté l’allowlist `esbuild` pour les clones propres avec `pnpm` moderne et renforcé les tests Windows.
+- Créé `COMPLIANCE_REPORT.md` et finalisé un audit de sécurité repository-wide de la révision de référence (53 surfaces, 19 constats remédiés).
+
+**Commandes exécutées :** `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm test`, `pnpm lint`, `pnpm format:check`, `pnpm check`, commandes CLI obligatoires, démarrage MCP, dashboard local et QA navigateur.
+
+**Résultat :** build/lint/format/secrets/attribution/review verts ; 25 tests ; dashboard validé sur `http://127.0.0.1:3585/codinfy` et son alias officiel.
+
+**Prochaine action :** aucune correction bloquante ; surveiller uniquement la CI GitHub du commit documentaire final.
+
+---
+
 ## 2026-06-29 (v0.1.3 Codix Observer + dev/export/i18n) — Cascade (Windsurf)
 
 **Type of work:** Continued the v0.1.3 scope, integrating with concurrent

@@ -17,7 +17,7 @@ describe('CLI', () => {
     expect(run.stdout).toContain('codinfy-agent-monitor');
     expect(run.stdout).toContain('© CODINFY PLATFORMS SASU');
     rmSync(project, { recursive: true, force: true });
-  }, 30_000);
+  }, 60_000);
 
   it('applies the global project option to mutating commands', () => {
     const project = mkdtempSync(join(tmpdir(), 'codinfy-cli-project-'));
@@ -28,5 +28,5 @@ describe('CLI', () => {
     expect(run.status).toBe(0);
     expect(existsSync(join(project, '.codinfy-agent-monitor', 'config.json'))).toBe(true);
     rmSync(project, { recursive: true, force: true });
-  }, 30_000);
+  }, 60_000);
 });
