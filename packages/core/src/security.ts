@@ -1,5 +1,5 @@
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { execTrustedFileSync } from './execution.js';
 import type { SecretFinding } from './types.js';
 
@@ -34,6 +34,7 @@ const SECRET_PATTERNS = [
 ];
 
 const SKIP_PARTS = ['node_modules', '.git', 'dist', 'coverage', '.codinfy-agent-monitor'];
+const SCANNABLE_VISUAL_EXTENSIONS = new Set(['.gif', '.ico', '.jpeg', '.jpg', '.png', '.webp']);
 const SENSITIVE_FILE =
   /(?:^|[/\\])(?:\.env(?:\..+)?|id_rsa|id_ed25519|credentials(?:\.json)?|.*\.(?:pem|p12|pfx|key))$/i;
 
@@ -172,8 +173,9 @@ export function scanSecrets(root: string): SecretFinding[] {
     }
     let content: string;
     try {
-      content = readFileSync(absolute, 'utf8');
-      if (content.includes('\0')) {
+      const bytes = readFileSync(absolute);
+      content = bytes.toString('utf8');
+      if (bytes.includes(0) && !SCANNABLE_VISUAL_EXTENSIONS.has(extname(file).toLowerCase())) {
         findings.push({
           file,
           line: 1,

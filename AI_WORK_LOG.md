@@ -8,6 +8,20 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-29 (README demos + GitHub release v0.1.3) — Codex
+
+**Type de travail :** documentation visuelle, préparation de release et maintien du contrôle public-ready.
+
+- Ajouté les deux captures haute résolution au README : showcase mission-control et dashboard local réel sur `/codinfy`.
+- Ajouté un résumé vérifiable des nouveautés v0.1.3 et documenté les commandes `observer`, `deps`, `history`, `diff --full` et les exports HTML/JSON/Markdown.
+- Adapté le scanner pour analyser les signatures de secrets ASCII présentes dans les formats d’image connus, sans considérer automatiquement chaque PNG comme un trou d’inventaire ; les binaires inconnus restent bloqués.
+- Corrigé le lanceur sécurisé Windows afin que les chemins absolus validés vers `pnpm.cmd` fonctionnent avec `tests --run` et `build --run`, sans autoriser les métacaractères du shell.
+- Préparé les notes de release publiques v0.1.3 avec installation, points forts, sécurité et attribution officielle.
+
+**Validation locale :** `pnpm check` vert avec lint, build, format, secrets et attribution. La publication suit le contrôle CLI `review`, la CI GitHub, puis le tag annoté et la release publique.
+
+---
+
 ## 2026-06-29 (dashboard + audit public V1.3) — Codex
 
 **Type de travail :** redesign du dashboard, audit de conformité complet, corrections sécurité et validation publique.

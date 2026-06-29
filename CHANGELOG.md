@@ -11,13 +11,14 @@
 - Immersive glass mission-control dashboard with responsive navigation, animated usage meters, workflow rail, agent radar, live timeline, release health, Git, environment, AI Credit Saver and official Codinfy social identity.
 - Official web routes `/codinfy` and `/codinfy-agent-monitor`, alongside the compatible `/dashboard` alias.
 - Security regressions for project-root propagation, Git remote credential redaction, scanner fallback, symlink storage rejection, hook isolation and terminal-control sanitization.
+- Full-resolution README demos for the immersive mission-control showcase and the live local `/codinfy` dashboard.
 
 ### Security
 
 - Restricted HTTP Host and WebSocket Origin to loopback, capped live sockets, and added browser hardening headers.
 - Replaced project-local executable lookup with trusted absolute resolution for Git, environment probes and package-manager commands.
 - Redacted secrets before durable storage and report generation; bounded persistent event history.
-- Made secret scanning fail closed for inventory gaps, symlinks, unreadable, binary and oversized files without exposing source-line previews.
+- Made secret scanning fail closed for inventory gaps, symlinks, unreadable, unknown binary and oversized files without exposing source-line previews; known visual assets are scanned for recognizable embedded secret signatures.
 - Pinned GitHub Actions by commit SHA and added a tracked-worktree integrity gate before public-release checks.
 
 ### Fixed
@@ -25,6 +26,7 @@
 - Applied the global `--project` option consistently to CLI status, test/build, review, reset and guided commands.
 - Fixed the generated dashboard route parser that prevented live data from rendering.
 - Loaded expensive release/environment checks progressively so the live command center becomes useful first.
+- Allowed validated absolute Windows wrapper paths to pass the trusted package-manager launcher, fixing `tests --run` and `build --run` when `pnpm.cmd` is provided by a bundled runtime.
 
 ### Changed
 

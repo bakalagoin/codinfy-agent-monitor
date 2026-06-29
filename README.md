@@ -28,7 +28,7 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 
   <br>
 
-[**Overview**](#-the-mission) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Architecture**](#-architecture) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
+[**Demo**](#-live-dashboard-demo) · [**v0.1.3**](#-whats-new-in-v013) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
 </div>
 
 <br>
@@ -36,6 +36,39 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 <p align="center">
   <img src="./assets/readme/hero-glass.svg" width="100%" alt="Animated Codinfy Agent Monitor glass mission-control dashboard">
 </p>
+
+---
+
+## ◈ Live dashboard demo
+
+### Mission-control showcase
+
+<a href="./assets/readme/codinfy-agent-monitor-mission-control.png">
+  <img src="./assets/readme/codinfy-agent-monitor-mission-control.png" width="100%" alt="Codinfy Agent Monitor immersive mission-control dashboard with workflow rail, agent radar, timeline, limits and AI Credit Saver">
+</a>
+
+<p align="center"><sub>Click the image to explore the full-resolution command-center showcase.</sub></p>
+
+### Live local interface — `/codinfy`
+
+<a href="./assets/readme/codinfy-agent-monitor-live-dashboard.png">
+  <img src="./assets/readme/codinfy-agent-monitor-live-dashboard.png" width="100%" alt="Live Codinfy Agent Monitor local glass dashboard at the official codinfy route">
+</a>
+
+<p align="center"><sub>Captured from the working local dashboard with live events, project health and release-safety views.</sub></p>
+
+## ✨ What's new in v0.1.3
+
+| Area                       | v0.1.3 update                                                                                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Glass dashboard**        | Immersive responsive mission control, animated meters, workflow rail, agent radar, live timeline and official routes `/codinfy` + `/codinfy-agent-monitor` |
+| **Codix Observer**         | Detects blockers, repeated failures, rate-limit bursts and context pressure, then proposes contextual next actions                                         |
+| **Developer intelligence** | Dependency health, full redacted Git diff, command/check history and Markdown, JSON or HTML reports                                                        |
+| **MCP API**                | 42 tools spanning usage, agents, workflow, engineering, reports, model economy and release trust                                                           |
+| **Security**               | Loopback-only dashboard, hardened Host/Origin checks, trusted executable resolution, secret-safe persistence and fail-closed release gates                 |
+| **International use**      | Expanded French/English interface messages, automatic language detection and explicit estimate provenance                                                  |
+
+[Read the complete v0.1.3 changelog](./CHANGELOG.md#013--2026-06-29) · [Read the release notes](./docs/releases/v0.1.3.md)
 
 ---
 
@@ -167,9 +200,13 @@ codinfy-agent-monitor health
 
 ```bash
 codinfy-agent-monitor git
-codinfy-agent-monitor diff
+codinfy-agent-monitor diff --full
 codinfy-agent-monitor tests --run
 codinfy-agent-monitor build --run
+codinfy-agent-monitor observer
+codinfy-agent-monitor deps
+codinfy-agent-monitor history
+codinfy-agent-monitor export --format html
 codinfy-agent-monitor secrets
 codinfy-agent-monitor check-command "git push --force"
 codinfy-agent-monitor attribution-check
@@ -357,7 +394,7 @@ corepack pnpm install
 pnpm check
 ```
 
-`pnpm check` runs lint, 15 tests — including a live MCP stdio client/server test — TypeScript build and formatting validation.
+`pnpm check` runs lint, 28 tests — including a live MCP stdio client/server test — TypeScript build, formatting, secret scanning and attribution validation.
 
 | Guide                                | Purpose                                   |
 | ------------------------------------ | ----------------------------------------- |

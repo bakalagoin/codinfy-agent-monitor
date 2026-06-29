@@ -18,6 +18,7 @@ import {
   renderMarkdownReport,
   sanitizeTerminalText,
   scanSecrets,
+  spawnTrusted,
 } from '../src/index.js';
 
 const roots: string[] = [];
@@ -39,6 +40,11 @@ describe('Codinfy Agent Monitor core', () => {
     expect(monitor.store.databasePath).toContain('metrics.sqlite');
     monitor.close();
   });
+
+  it('executes a trusted package-manager wrapper from an absolute runtime path', () => {
+    const run = spawnTrusted('pnpm', ['--version'], { cwd: root(), timeout: 30_000 });
+    expect(run.status).toBe(0);
+  }, 30_000);
 
   it('creates and updates agents', () => {
     const monitor = new AgentMonitor(root());
@@ -149,6 +155,26 @@ describe('Codinfy Agent Monitor core', () => {
     writeFileSync(join(project, 'local.ts'), `const token = '${secret}';\n`, 'utf8');
     const findings = scanSecrets(project);
     expect(findings.some((finding) => finding.file === 'local.ts')).toBe(true);
+    expect(JSON.stringify(findings)).not.toContain(secret);
+  });
+
+  it('scans visual assets without treating known image binaries as inventory gaps', () => {
+    const project = root();
+    execFileSync('git', ['init'], { cwd: project, stdio: 'ignore' });
+    writeFileSync(join(project, 'preview.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2]));
+    expect(scanSecrets(project)).toEqual([]);
+  });
+
+  it('detects an ASCII secret embedded in a visual asset without exposing it', () => {
+    const project = root();
+    execFileSync('git', ['init'], { cwd: project, stdio: 'ignore' });
+    const secret = `ghp_${'v'.repeat(30)}`;
+    writeFileSync(
+      join(project, 'preview.png'),
+      Buffer.concat([Buffer.from([0x89, 0, 1]), Buffer.from(secret)]),
+    );
+    const findings = scanSecrets(project);
+    expect(findings.some((finding) => finding.file === 'preview.png')).toBe(true);
     expect(JSON.stringify(findings)).not.toContain(secret);
   });
 

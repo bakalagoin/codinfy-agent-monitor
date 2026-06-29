@@ -73,7 +73,7 @@ function trustedWindowsShell(): string {
 }
 
 function safeCommandArgument(value: string): string {
-  if (!/^[a-z0-9_:@./=+-]+$/i.test(value))
+  if (!/^[a-z0-9_:@./\\=+() -]+$/i.test(value))
     throw new Error(`Unsafe package-manager argument rejected: ${value}`);
   return `"${value}"`;
 }
@@ -96,10 +96,13 @@ export function spawnTrusted(
     process.platform === 'win32' &&
     ['.cmd', '.bat'].includes(extname(executable).toLowerCase())
   ) {
-    const invocation = [safeCommandArgument(executable), ...args.map(safeCommandArgument)].join(
+    const invocation = `"${[safeCommandArgument(executable), ...args.map(safeCommandArgument)].join(
       ' ',
-    );
-    return spawnSync(trustedWindowsShell(), ['/d', '/s', '/c', invocation], shared);
+    )}"`;
+    return spawnSync(trustedWindowsShell(), ['/d', '/s', '/c', invocation], {
+      ...shared,
+      windowsVerbatimArguments: true,
+    });
   }
   return spawnSync(executable, args, shared);
 }
