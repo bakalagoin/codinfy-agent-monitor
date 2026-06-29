@@ -1,16 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { platform, release } from 'node:os';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { resolveTrustedExecutable } from './execution.js';
 import type { EnvironmentStatus } from './types.js';
 
-function version(command: string, args = ['--version']): string | null {
+function version(command: string, cwd: string, args = ['--version']): string | null {
+  const executable = resolveTrustedExecutable(command, cwd);
+  if (!executable) return null;
+  if (['.cmd', '.bat'].includes(extname(executable).toLowerCase())) return 'available';
   try {
     return (
-      execFileSync(command, args, {
+      execFileSync(executable, args, {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 3_000,
+        timeout: 1_000,
       })
         .trim()
         .split(/\r?\n/)[0] ?? null
@@ -73,16 +77,16 @@ export function getEnvironmentStatus(cwd: string): EnvironmentStatus {
     shell: process.env.SHELL ?? process.env.COMSPEC ?? 'unknown',
     tools: {
       node: process.version,
-      npm: version('npm'),
-      pnpm: version('pnpm'),
-      yarn: version('yarn'),
-      git: version('git'),
-      docker: version('docker'),
-      php: version('php'),
-      composer: version('composer'),
-      python: version(platform() === 'win32' ? 'python' : 'python3'),
-      java: version('java'),
-      redis: version('redis-server'),
+      npm: version('npm', cwd),
+      pnpm: version('pnpm', cwd),
+      yarn: version('yarn', cwd),
+      git: version('git', cwd),
+      docker: version('docker', cwd),
+      php: version('php', cwd),
+      composer: version('composer', cwd),
+      python: version(platform() === 'win32' ? 'python' : 'python3', cwd),
+      java: version('java', cwd),
+      redis: version('redis-server', cwd),
     },
     longRunningProcesses: type !== 'Shared Hosting',
     detectedStacks: detectStacks(cwd),

@@ -13,11 +13,11 @@ Tool families:
 - limits: context, rate, daily, weekly;
 - AI Credit Saver: advice, score, budget, cost, economy plan;
 - tasks/workflow: create, update, list, workflow, timeline;
-- operations: alerts, Codix Observer recommendations, Git, tests, build, environment;
-- developer: `monitor.git_diff`, `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`;
+- operations: alerts, Codix Observer (`monitor.observer`, `monitor.recommendations`), Git, tests, build, environment, dependency health (`monitor.dependency_health`);
+- developer: `monitor.git_diff` (with `full`), `monitor.check_command`, `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`;
 - guided: `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`;
 - safety: review before commit, secret scan, attribution;
-- reporting: `monitor.export_report`.
+- reporting: `monitor.export_report` (formats: md, json, html).
 
 Every result is passed through redaction. The MCP does not read provider keys and does not expose `.env`. `monitor.get_attribution` returns the immutable product identity. Model advice is categorical and always says that a switch requires confirmation.
 

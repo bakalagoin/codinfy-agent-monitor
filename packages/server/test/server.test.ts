@@ -16,8 +16,16 @@ describe('local dashboard server', () => {
     const dashboard = await app.inject('/dashboard');
     expect(dashboard.body).toContain('© CODINFY PLATFORMS SASU');
     expect(dashboard.body).toContain('/codinfy');
+    expect(dashboard.body).toContain('Mission control');
+    expect(dashboard.body).toContain('Agents radar');
+    expect(dashboard.body).toContain('AI Credit Saver');
     expect(dashboard.body).toContain('data-pages');
     expect(dashboard.body).toContain('id="pageTitle"');
+    const codinfy = await app.inject('/codinfy');
+    expect(codinfy.statusCode).toBe(200);
+    expect(codinfy.body).toContain('Codinfy Agent Monitor');
+    const officialRoute = await app.inject('/codinfy-agent-monitor');
+    expect(officialRoute.statusCode).toBe(200);
     const agents = await app.inject('/agents');
     expect(agents.statusCode).toBe(200);
     const review = await app.inject('/api/review');
@@ -25,6 +33,9 @@ describe('local dashboard server', () => {
     expect(review.json()).toHaveProperty('ready');
     const git = await app.inject('/api/git');
     expect(git.statusCode).toBe(200);
+    const rebound = await app.inject({ url: '/api/status', headers: { host: 'attacker.invalid' } });
+    expect(rebound.statusCode).toBe(403);
+    expect(dashboard.headers['x-frame-options']).toBe('DENY');
     await app.close();
     monitor.close();
     rmSync(root, { recursive: true, force: true });

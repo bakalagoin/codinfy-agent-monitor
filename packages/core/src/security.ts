@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { lstatSync, readFileSync, readdirSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
+import { execTrustedFileSync } from './execution.js';
 import type { SecretFinding } from './types.js';
 
 const SECRET_PATTERNS = [
@@ -40,30 +40,126 @@ const SENSITIVE_FILE =
 export function redactSecrets(value: string): string {
   let output = value;
   for (const pattern of SECRET_PATTERNS) output = output.replace(pattern.regex, '[REDACTED]');
+  return output
+    .replace(/(https?:\/\/)[^/@\s:]+:[^/@\s]+@/gi, '$1[REDACTED]@')
+    .replace(/\b(?:eyJ[A-Za-z0-9_-]+\.){2}[A-Za-z0-9_-]+\b/g, '[REDACTED]');
+}
+
+export function sanitizeTerminalText(value: string, preserveNewlines = false): string {
+  let output = '';
+  for (const character of redactSecrets(value)) {
+    const code = character.codePointAt(0) ?? 0;
+    const allowedNewline = preserveNewlines && code === 10;
+    const control = code < 32 || (code >= 0x7f && code <= 0x9f);
+    const bidiOverride = (code >= 0x202a && code <= 0x202e) || (code >= 0x2066 && code <= 0x2069);
+    output +=
+      control && !allowedNewline
+        ? `\\u${code.toString(16).padStart(4, '0')}`
+        : bidiOverride
+          ? `[U+${code.toString(16).toUpperCase()}]`
+          : character;
+  }
   return output;
 }
 
-function listProjectFiles(root: string): string[] {
+function isWithinRoot(root: string, candidate: string): boolean {
+  const path = relative(resolve(root), resolve(candidate));
+  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
+}
+
+function fallbackProjectFiles(root: string): { files: string[]; truncated: boolean } {
+  const files: string[] = [];
+  const queue = [resolve(root)];
+  let truncated = false;
+  while (queue.length && files.length < 20_000) {
+    const directory = queue.pop()!;
+    let entries;
+    try {
+      entries = readdirSync(directory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (SKIP_PARTS.includes(entry.name)) continue;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) queue.push(absolute);
+      else files.push(absolute);
+      if (files.length >= 20_000) {
+        truncated = true;
+        break;
+      }
+    }
+  }
+  return { files, truncated };
+}
+
+function listProjectFiles(root: string): { files: string[]; truncated: boolean } {
   try {
-    const output = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return output
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map((file) => resolve(root, file));
+    const output = execTrustedFileSync(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard'],
+      { cwd: root, timeout: 10_000 },
+    );
+    return {
+      files: output
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((file) => resolve(root, file))
+        .filter((file) => isWithinRoot(root, file)),
+      truncated: false,
+    };
   } catch {
-    return [];
+    return fallbackProjectFiles(root);
   }
 }
 
 export function scanSecrets(root: string): SecretFinding[] {
   const findings: SecretFinding[] = [];
-  for (const absolute of listProjectFiles(root)) {
+  const inventory = listProjectFiles(root);
+  if (inventory.truncated)
+    findings.push({
+      file: '.',
+      line: 1,
+      rule: 'Secret scan inventory exceeded 20,000 files',
+      preview: '[SCAN INCOMPLETE]',
+      severity: 'high',
+    });
+  for (const absolute of inventory.files) {
     const file = relative(root, absolute).replaceAll('\\', '/');
     if (SKIP_PARTS.some((part) => file.split('/').includes(part))) continue;
+    try {
+      const info = lstatSync(absolute);
+      if (info.isSymbolicLink()) {
+        findings.push({
+          file,
+          line: 1,
+          rule: 'Symbolic link was not followed by the secret scanner',
+          preview: '[SYMLINK NOT SCANNED]',
+          severity: 'high',
+        });
+        continue;
+      }
+      if (!info.isFile()) continue;
+      if (info.size > 5_000_000) {
+        findings.push({
+          file,
+          line: 1,
+          rule: 'File exceeds the 5 MB secret scanner limit',
+          preview: '[FILE NOT SCANNED]',
+          severity: 'medium',
+        });
+        continue;
+      }
+    } catch {
+      findings.push({
+        file,
+        line: 1,
+        rule: 'File metadata could not be inspected',
+        preview: '[FILE NOT SCANNED]',
+        severity: 'medium',
+      });
+      continue;
+    }
     if (SENSITIVE_FILE.test(file) && file !== '.env.example') {
       findings.push({
         file,
@@ -77,8 +173,24 @@ export function scanSecrets(root: string): SecretFinding[] {
     let content: string;
     try {
       content = readFileSync(absolute, 'utf8');
-      if (content.includes('\0') || content.length > 1_000_000) continue;
+      if (content.includes('\0')) {
+        findings.push({
+          file,
+          line: 1,
+          rule: 'Binary file was not inspected for secrets',
+          preview: '[BINARY FILE NOT SCANNED]',
+          severity: 'medium',
+        });
+        continue;
+      }
     } catch {
+      findings.push({
+        file,
+        line: 1,
+        rule: 'File could not be read by the secret scanner',
+        preview: '[FILE NOT SCANNED]',
+        severity: 'medium',
+      });
       continue;
     }
     const lines = content.split(/\r?\n/);
@@ -90,7 +202,7 @@ export function scanSecrets(root: string): SecretFinding[] {
             file,
             line: index + 1,
             rule: pattern.name,
-            preview: redactSecrets(lineText.trim()).slice(0, 160),
+            preview: '[REDACTED MATCH]',
             severity: pattern.severity,
           });
         }

@@ -8,6 +8,44 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-29 (v0.1.3 Codix Observer + dev/export/i18n) — Cascade (Windsurf)
+
+**Type of work:** Continued the v0.1.3 scope, integrating with concurrent
+security-hardening work already in the tree (`execution.ts`, hardened hook).
+
+- **Codix Observer** (`packages/core/src/observer.ts`): pure `analyzeObserver`
+  detecting stalled/blocked/error agents, repeated file reads, repeated command
+  failures, and 429/rate-limit bursts; plus recommendations (high context, usage
+  pressure, model mismatch, missing security review). Wired into
+  `monitor.observer()`, the `observer` CLI command, the `monitor.observer` MCP
+  tool, and now backing `monitor.recommendations`.
+- **Dependency health** (`packages/core/src/deps.ts`): uses the trusted
+  `spawnTrusted` resolver + redaction; `deps` CLI command (`--run`) and
+  `monitor.dependency_health` MCP tool.
+- **Dev/export**: `diff --full` (redacted patch via `getGitDiff`), `history`
+  command, and `md|json|html` report export (`renderJsonReport` /
+  `renderHtmlReport` / `writeReport`) via `export --format` and the
+  `monitor.export_report` format param.
+- **i18n**: added fr/en keys (observer, recommendations, dependencies, history,
+  report).
+- **Tests**: Codix Observer unit test + JSON/HTML report renderer test (core now
+  19 tests; suite 25 total).
+
+**Conflict resolved:** dropped an `observer` alias `why-blocked` that collided
+with the existing simple `why-blocked` snapshot command.
+
+**MCP tools:** now **42** (added `monitor.observer`, `monitor.dependency_health`).
+
+**Verification:** `build`, `lint`, `format`, `test` (25/25) pass; smoke-tested
+`observer`, `deps`, `export --format json`, and MCP tool count.
+
+**Files:** `packages/core/src/{observer,deps}.ts`, `git.ts`, `report.ts`,
+`monitor.ts`, `i18n.ts`, `index.ts`, `packages/cli/src/index.ts`,
+`packages/mcp-server/src/index.ts`, `packages/core/test/core.test.ts`,
+`README.md`, `CHANGELOG.md`, `docs/mcp.md`, `AI_WORK_LOG.md`.
+
+---
+
 ## 2026-06-28 (per-page dashboard) — Cascade (Windsurf)
 
 **Type of work:** Continued V2 polish — per-page dashboard views.

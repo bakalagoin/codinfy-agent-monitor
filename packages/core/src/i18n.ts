@@ -23,6 +23,12 @@ const messages = {
     noActivity: 'No activity recorded yet',
     workflow: 'Workflow',
     blockers: 'Blockers',
+    observer: 'Codix Observer',
+    recommendations: 'Recommendations',
+    noBlockers: 'No blockers detected',
+    dependencies: 'Dependencies',
+    history: 'Recent activity',
+    report: 'Report',
   },
   fr: {
     project: 'Projet',
@@ -46,6 +52,12 @@ const messages = {
     noActivity: 'Aucune activité enregistrée',
     workflow: 'Workflow',
     blockers: 'Blocages',
+    observer: 'Codix Observer',
+    recommendations: 'Recommandations',
+    noBlockers: 'Aucun blocage détecté',
+    dependencies: 'Dépendances',
+    history: 'Activité récente',
+    report: 'Rapport',
   },
 } as const;
 

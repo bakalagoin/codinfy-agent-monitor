@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
+import { redactSecrets } from './security.js';
 import type {
   Agent,
   AgentStatus,
@@ -14,10 +15,10 @@ import type {
 } from './types.js';
 
 const configSchema = z.object({
-  projectName: z.string().min(1),
-  sessionName: z.string().min(1).default('Local monitoring'),
-  tool: z.string().min(1).default('MCP-compatible tool'),
-  currentModel: z.string().min(1).default('Not reported'),
+  projectName: z.string().min(1).max(240),
+  sessionName: z.string().min(1).max(240).default('Local monitoring'),
+  tool: z.string().min(1).max(240).default('MCP-compatible tool'),
+  currentModel: z.string().min(1).max(240).default('Not reported'),
   currentCategory: z
     .enum([
       'fast_cheap',
@@ -36,6 +37,19 @@ const configSchema = z.object({
 });
 
 export type MonitorConfig = z.infer<typeof configSchema>;
+
+function assertNotSymbolicLink(path: string): void {
+  if (existsSync(path) && lstatSync(path).isSymbolicLink())
+    throw new Error(`Refusing symbolic link for local monitor storage: ${path}`);
+}
+
+function redactValue<T>(value: T): T {
+  return JSON.parse(redactSecrets(JSON.stringify(value))) as T;
+}
+
+function redactText(value: string): string {
+  return redactSecrets(value);
+}
 
 interface AgentRow {
   id: string;
@@ -85,8 +99,16 @@ export class MonitorStore {
     this.dataRoot = resolve(dataRoot ?? join(this.projectRoot, '.codinfy-agent-monitor'));
     this.configPath = join(this.dataRoot, 'config.json');
     this.databasePath = join(this.dataRoot, 'metrics.sqlite');
+    assertNotSymbolicLink(this.dataRoot);
     this.ensureDirectories();
+    assertNotSymbolicLink(this.configPath);
+    assertNotSymbolicLink(this.databasePath);
     this.db = new DatabaseSync(this.databasePath);
+    try {
+      chmodSync(this.databasePath, 0o600);
+    } catch {
+      /* best effort on platforms without POSIX modes */
+    }
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
     this.migrate();
     this.getConfig();
@@ -94,8 +116,12 @@ export class MonitorStore {
   }
 
   private ensureDirectories(): void {
-    for (const directory of ['', 'sessions', 'agents', 'workflows', 'logs', 'reports', 'cache'])
-      mkdirSync(join(this.dataRoot, directory), { recursive: true });
+    for (const directory of ['', 'sessions', 'agents', 'workflows', 'logs', 'reports', 'cache']) {
+      const path = join(this.dataRoot, directory);
+      assertNotSymbolicLink(path);
+      mkdirSync(path, { recursive: true, mode: 0o700 });
+      assertNotSymbolicLink(path);
+    }
   }
 
   private migrate(): void {
@@ -140,14 +166,17 @@ export class MonitorStore {
     let config = defaults;
     if (existsSync(this.configPath)) {
       try {
-        config = configSchema.parse({
-          ...defaults,
-          ...JSON.parse(readFileSync(this.configPath, 'utf8')),
-        });
+        config = configSchema.parse(
+          redactValue({
+            ...defaults,
+            ...JSON.parse(readFileSync(this.configPath, 'utf8')),
+          }),
+        );
       } catch {
         config = defaults;
       }
     }
+    assertNotSymbolicLink(this.configPath);
     writeFileSync(this.configPath, `${JSON.stringify(config, null, 2)}\n`, {
       encoding: 'utf8',
       mode: 0o600,
@@ -156,7 +185,8 @@ export class MonitorStore {
   }
 
   updateConfig(patch: Partial<MonitorConfig>): MonitorConfig {
-    const config = configSchema.parse({ ...this.getConfig(), ...patch });
+    assertNotSymbolicLink(this.configPath);
+    const config = configSchema.parse(redactValue({ ...this.getConfig(), ...patch }));
     writeFileSync(this.configPath, `${JSON.stringify(config, null, 2)}\n`, {
       encoding: 'utf8',
       mode: 0o600,
@@ -177,7 +207,7 @@ export class MonitorStore {
     color?: string;
   }): Agent {
     const now = new Date().toISOString();
-    const id = input.id ?? randomUUID();
+    const id = redactText(input.id ?? randomUUID()).slice(0, 240);
     this.db
       .prepare(
         `INSERT INTO agents (id,name,role,status,task,model_category,color,started_at,updated_at)
@@ -186,12 +216,12 @@ export class MonitorStore {
       )
       .run(
         id,
-        input.name,
-        input.role,
+        redactText(input.name).slice(0, 240),
+        redactText(input.role).slice(0, 240),
         input.status ?? 'active',
-        input.task ?? null,
+        input.task ? redactText(input.task).slice(0, 4_000) : null,
         input.modelCategory ?? null,
-        input.color ?? null,
+        input.color ? redactText(input.color).slice(0, 64) : null,
         now,
         now,
       );
@@ -232,9 +262,13 @@ export class MonitorStore {
       )
       .run(
         patch.status,
-        patch.task ?? current.task ?? null,
-        patch.lastAction ?? current.lastAction ?? null,
-        patch.lastFile ?? current.lastFile ?? null,
+        patch.task !== undefined ? redactText(patch.task).slice(0, 4_000) : (current.task ?? null),
+        patch.lastAction !== undefined
+          ? redactText(patch.lastAction).slice(0, 8_000)
+          : (current.lastAction ?? null),
+        patch.lastFile !== undefined
+          ? redactText(patch.lastFile).slice(0, 2_000)
+          : (current.lastFile ?? null),
         patch.modelCategory ?? current.modelCategory ?? null,
         updatedAt,
         id,
@@ -246,14 +280,14 @@ export class MonitorStore {
   private mapAgent(row: AgentRow): Agent {
     return {
       id: row.id,
-      name: row.name,
-      role: row.role,
+      name: redactText(row.name),
+      role: redactText(row.role),
       status: row.status,
-      ...(row.task ? { task: row.task } : {}),
+      ...(row.task ? { task: redactText(row.task) } : {}),
       ...(row.model_category ? { modelCategory: row.model_category } : {}),
-      ...(row.color ? { color: row.color } : {}),
-      ...(row.last_action ? { lastAction: row.last_action } : {}),
-      ...(row.last_file ? { lastFile: row.last_file } : {}),
+      ...(row.color ? { color: redactText(row.color) } : {}),
+      ...(row.last_action ? { lastAction: redactText(row.last_action) } : {}),
+      ...(row.last_file ? { lastFile: redactText(row.last_file) } : {}),
       startedAt: row.started_at,
       updatedAt: row.updated_at,
     };
@@ -267,13 +301,21 @@ export class MonitorStore {
     progress?: number;
   }): MonitorTask {
     const now = new Date().toISOString();
-    const id = input.id ?? randomUUID();
+    const id = redactText(input.id ?? randomUUID()).slice(0, 240);
     const progress = Math.max(0, Math.min(100, input.progress ?? 0));
     this.db
       .prepare(
         'INSERT INTO tasks (id,title,status,agent_id,progress,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',
       )
-      .run(id, input.title, input.status ?? 'pending', input.agentId ?? null, progress, now, now);
+      .run(
+        id,
+        redactText(input.title).slice(0, 4_000),
+        input.status ?? 'pending',
+        input.agentId ?? null,
+        progress,
+        now,
+        now,
+      );
     this.recordEvent('task.created', input.title, { id });
     return this.getTask(id)!;
   }
@@ -316,7 +358,7 @@ export class MonitorStore {
   private mapTask(row: TaskRow): MonitorTask {
     return {
       id: row.id,
-      title: row.title,
+      title: redactText(row.title),
       status: row.status,
       ...(row.agent_id ? { agentId: row.agent_id } : {}),
       progress: row.progress,
@@ -349,14 +391,20 @@ export class MonitorStore {
 
   recordEvent(type: string, message: string, metadata?: Record<string, unknown>): TimelineEvent {
     const createdAt = new Date().toISOString();
+    const safeType = redactText(type).slice(0, 160);
+    const safeMessage = redactText(message).slice(0, 8_000);
+    const safeMetadata = metadata ? redactValue(metadata) : undefined;
     const result = this.db
       .prepare('INSERT INTO events (type,message,metadata,created_at) VALUES (?,?,?,?)')
-      .run(type, message, metadata ? JSON.stringify(metadata) : null, createdAt);
+      .run(safeType, safeMessage, safeMetadata ? JSON.stringify(safeMetadata) : null, createdAt);
+    this.db.exec(
+      'DELETE FROM events WHERE id <= (SELECT CASE WHEN MAX(id) > 10000 THEN MAX(id) - 10000 ELSE 0 END FROM events);',
+    );
     return {
       id: Number(result.lastInsertRowid),
-      type,
-      message,
-      ...(metadata ? { metadata } : {}),
+      type: safeType,
+      message: safeMessage,
+      ...(safeMetadata ? { metadata: safeMetadata } : {}),
       createdAt,
     };
   }
@@ -367,9 +415,11 @@ export class MonitorStore {
       .all(Math.max(1, Math.min(500, limit))) as unknown as EventRow[];
     return rows.map((row) => ({
       id: row.id,
-      type: row.type,
-      message: row.message,
-      ...(row.metadata ? { metadata: JSON.parse(row.metadata) as Record<string, unknown> } : {}),
+      type: redactText(row.type),
+      message: redactText(row.message),
+      ...(row.metadata
+        ? { metadata: redactValue(JSON.parse(row.metadata) as Record<string, unknown>) }
+        : {}),
       createdAt: row.created_at,
     }));
   }
@@ -381,10 +431,10 @@ export class MonitorStore {
     return row
       ? {
           id: row.id,
-          type: row.type,
-          message: row.message,
+          type: redactText(row.type),
+          message: redactText(row.message),
           ...(row.metadata
-            ? { metadata: JSON.parse(row.metadata) as Record<string, unknown> }
+            ? { metadata: redactValue(JSON.parse(row.metadata) as Record<string, unknown>) }
             : {}),
           createdAt: row.created_at,
         }

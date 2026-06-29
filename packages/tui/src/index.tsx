@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Text, render, useApp, useInput } from 'ink';
 import {
   CODINFY_ATTRIBUTION,
+  sanitizeTerminalText,
   translate,
   type AgentMonitor,
   type Language,
@@ -40,6 +41,7 @@ export function Dashboard({ monitor }: { monitor: AgentMonitor }) {
   const [snapshot, setSnapshot] = useState<MonitorSnapshot>(() => monitor.snapshot());
   const [frame, setFrame] = useState(0);
   const language = monitor.language;
+  const safe = sanitizeTerminalText;
   useEffect(() => {
     const timer = setInterval(() => {
       setSnapshot(monitor.snapshot());
@@ -62,12 +64,12 @@ export function Dashboard({ monitor }: { monitor: AgentMonitor }) {
           Codinfy Agent Monitor
         </Text>
         <Text>
-          {translate(language, 'project')}: {snapshot.project} · {translate(language, 'session')}:{' '}
-          {snapshot.session}
+          {translate(language, 'project')}: {safe(snapshot.project)} ·{' '}
+          {translate(language, 'session')}: {safe(snapshot.session)}
         </Text>
         <Text>
-          {translate(language, 'activeAi')}: {snapshot.tool} · {translate(language, 'command')}:
-          /codinfy · MCP: codinfy-agent-monitor
+          {translate(language, 'activeAi')}: {safe(snapshot.tool)} ·{' '}
+          {translate(language, 'command')}: /codinfy · MCP: codinfy-agent-monitor
         </Text>
         <Text> </Text>
         <Metric
@@ -100,7 +102,7 @@ export function Dashboard({ monitor }: { monitor: AgentMonitor }) {
           AI Credit Saver & Smart Model Router
         </Text>
         <Text>
-          {translate(language, 'currentModel')}: {snapshot.currentModel}
+          {translate(language, 'currentModel')}: {safe(snapshot.currentModel)}
         </Text>
         <Text>
           {translate(language, 'recommendedModel')}: {snapshot.advice.recommendedCategory} · Score{' '}
@@ -124,7 +126,7 @@ export function Dashboard({ monitor }: { monitor: AgentMonitor }) {
           {translate(language, 'blockers')}: {snapshot.blockers}
         </Text>
         <Text>
-          {translate(language, 'latestAction')}: {snapshot.latestAction}
+          {translate(language, 'latestAction')}: {safe(snapshot.latestAction)}
         </Text>
         <Text dimColor>Press r to refresh · q to quit</Text>
       </Box>
@@ -134,15 +136,16 @@ export function Dashboard({ monitor }: { monitor: AgentMonitor }) {
 }
 
 export function renderSnapshot(snapshot: MonitorSnapshot, language: Language = 'en'): string {
+  const safe = sanitizeTerminalText;
   const active = snapshot.agents.filter((agent) =>
     ['active', 'thinking', 'running', 'reading', 'writing'].includes(agent.status),
   ).length;
   const idle = snapshot.agents.filter((agent) => agent.status === 'idle').length;
   return [
     '╭────────────────── Codinfy Agent Monitor ──────────────────╮',
-    `${translate(language, 'project')}: ${snapshot.project}`,
-    `${translate(language, 'session')}: ${snapshot.session}`,
-    `${translate(language, 'activeAi')}: ${snapshot.tool}`,
+    `${translate(language, 'project')}: ${safe(snapshot.project)}`,
+    `${translate(language, 'session')}: ${safe(snapshot.session)}`,
+    `${translate(language, 'activeAi')}: ${safe(snapshot.tool)}`,
     `${translate(language, 'command')}: /codinfy · MCP: codinfy-agent-monitor`,
     '├────────────────────────────────────────────────────────────┤',
     `${translate(language, 'context').padEnd(22)} ${bar(snapshot.metrics.context.value)} (${snapshot.metrics.context.source})`,
@@ -151,14 +154,14 @@ export function renderSnapshot(snapshot: MonitorSnapshot, language: Language = '
     `${translate(language, 'weekly').padEnd(22)} ${bar(snapshot.metrics.weekly.value)} (${snapshot.metrics.weekly.source})`,
     ...(snapshot.estimateMode ? [`⚠ ${translate(language, 'estimateMode')}`] : []),
     '├──────────────── AI Credit Saver & Smart Model Router ──────┤',
-    `${translate(language, 'currentModel')}: ${snapshot.currentModel}`,
+    `${translate(language, 'currentModel')}: ${safe(snapshot.currentModel)}`,
     `${translate(language, 'recommendedModel')}: ${snapshot.advice.recommendedCategory} (score ${snapshot.advice.score}/100)`,
     `${translate(language, 'savings')}: ${snapshot.advice.estimatedCostSavingPercent}% · confirmation required`,
     '├────────────────────────────────────────────────────────────┤',
     `${translate(language, 'activeAgents')}: ${active} · ${translate(language, 'idleAgents')}: ${idle}`,
     `${translate(language, 'workflow')}: ${bar(snapshot.workflowProgress)}`,
     `${translate(language, 'criticalErrors')}: ${snapshot.errors} · ${translate(language, 'blockers')}: ${snapshot.blockers}`,
-    `${translate(language, 'latestAction')}: ${snapshot.latestAction}`,
+    `${translate(language, 'latestAction')}: ${safe(snapshot.latestAction)}`,
     '╰────────────────────────────────────────────────────────────╯',
     `  ${CODINFY_ATTRIBUTION.signature}`,
   ].join('\n');

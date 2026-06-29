@@ -12,9 +12,12 @@ import {
   checkAttribution,
   detectDangerousCommand,
   formatAttribution,
+  getDependencyHealth,
+  getGitDiff,
   getGitDiffStat,
   getModelAdvice,
   redactSecrets,
+  sanitizeTerminalText,
   scanSecrets,
 } from '@codinfy/agent-monitor-core';
 import { renderSnapshot, runTui } from '@codinfy/agent-monitor-tui';
@@ -22,11 +25,13 @@ import { renderSnapshot, runTui } from '@codinfy/agent-monitor-tui';
 const program = new Command();
 
 function print(value: unknown): void {
-  console.log(redactSecrets(typeof value === 'string' ? value : JSON.stringify(value, null, 2)));
+  console.log(
+    sanitizeTerminalText(typeof value === 'string' ? value : JSON.stringify(value, null, 2), true),
+  );
 }
 
-function withMonitor<T>(action: (monitor: AgentMonitor) => T, root = process.cwd()): T {
-  const monitor = new AgentMonitor(root);
+function withMonitor<T>(action: (monitor: AgentMonitor) => T, root?: string): T {
+  const monitor = new AgentMonitor(root ?? program.opts<{ project: string }>().project);
   try {
     return action(monitor);
   } finally {
@@ -50,7 +55,7 @@ program
   .description(
     'Codinfy Agent Monitor — real-time AI agent, workflow, usage, Git and security monitoring.',
   )
-  .version('0.1.2')
+  .version('0.1.3')
   .option('-C, --project <path>', 'project root to monitor', process.cwd())
   .showHelpAfterError();
 
@@ -413,11 +418,19 @@ program
 program
   .command('export')
   .alias('report')
-  .description('Export a redacted Markdown report.')
-  .action(() =>
-    withMonitor((monitor) =>
-      print({ path: monitor.exportReport(true), signature: CODINFY_ATTRIBUTION.signature }),
-    ),
+  .description('Export a redacted report (formats: md, json, html).')
+  .option('--format <format>', 'report format: md, json, or html', 'md')
+  .action((options: { format: string }) =>
+    withMonitor((monitor) => {
+      const format = options.format.toLowerCase();
+      if (!['md', 'json', 'html'].includes(format))
+        throw new Error('Format must be one of: md, json, html.');
+      print({
+        path: monitor.exportReport(true, format as 'md' | 'json' | 'html'),
+        format,
+        signature: CODINFY_ATTRIBUTION.signature,
+      });
+    }),
   );
 program
   .command('reset')
@@ -454,8 +467,12 @@ program
 
 program
   .command('diff')
-  .description('Show a read-only Git diff summary (stat only).')
-  .action(() => print(getGitDiffStat(program.opts<{ project: string }>().project)));
+  .description('Show a read-only Git diff (stat by default; --full for redacted patch).')
+  .option('--full', 'show the full redacted diff content instead of the stat only')
+  .action((options: { full?: boolean }) => {
+    const root = program.opts<{ project: string }>().project;
+    print(options.full ? getGitDiff(root) : getGitDiffStat(root));
+  });
 program
   .command('commit-message')
   .description('Suggest a Conventional Commit message from the current Git changes.')
@@ -672,17 +689,56 @@ program
       note: 'Model names come from a configurable catalog, not hard-coded provider names.',
     }),
   );
+program
+  .command('observer')
+  .description('Run Codix Observer: detect blockers and contextual recommendations.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const report = monitor.observer();
+      print(report);
+      if (report.blockers.some((blocker) => blocker.severity === 'critical')) process.exitCode = 1;
+    }),
+  );
+program
+  .command('deps')
+  .alias('audit')
+  .description('Inspect dependency health (read-only; use --run to execute outdated/audit).')
+  .option('--run', 'run the package manager outdated and audit commands (may use the network)')
+  .action((options: { run?: boolean }) =>
+    print(getDependencyHealth(program.opts<{ project: string }>().project, Boolean(options.run))),
+  );
+program
+  .command('history')
+  .description('Show recent commands and checks with success markers.')
+  .option('-n, --limit <count>', 'number of entries', '20')
+  .action((options: { limit: string }) =>
+    withMonitor((monitor) => {
+      const limit = Math.max(1, Math.min(100, Number(options.limit) || 20));
+      const entries = monitor.store
+        .timeline(100)
+        .filter((event) => /command|check\.|test|build/i.test(event.type))
+        .slice(0, limit)
+        .map((event) => ({
+          when: event.createdAt,
+          type: event.type,
+          status:
+            event.metadata?.success === true ? '✓' : event.metadata?.success === false ? '✗' : '·',
+          message: event.message,
+        }));
+      print(entries.length ? entries : 'No command history recorded yet.');
+    }),
+  );
 
 program
   .command('web')
-  .description('Start the local dashboard at http://localhost:3579.')
+  .description('Start the local dashboard at http://localhost:3579/codinfy.')
   .option('-p, --port <port>', 'port', '3579')
   .action(async (options: { port: string }) => {
     const { startLocalServer } = await import('@codinfy/agent-monitor-server');
     const monitor = new AgentMonitor(program.opts<{ project: string }>().project);
     const app = await startLocalServer({ monitor, port: Number(options.port) });
     console.log(
-      `${chalk.green('✓')} Dashboard: http://localhost:${options.port}/dashboard\n${CODINFY_ATTRIBUTION.signature}`,
+      `${chalk.green('✓')} Dashboard: http://localhost:${options.port}/codinfy\nAliases: /dashboard · /codinfy-agent-monitor\n${CODINFY_ATTRIBUTION.signature}`,
     );
     const close = async () => {
       await app.close();

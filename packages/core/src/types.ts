@@ -139,6 +139,19 @@ export interface MonitorSnapshot {
   estimateMode: boolean;
 }
 
+export interface ObserverBlocker {
+  kind: string;
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  agentId?: string;
+}
+
+export interface ObserverReport {
+  observer: 'Codix Observer';
+  blockers: ObserverBlocker[];
+  recommendations: string[];
+}
+
 export interface ReviewResult {
   ready: boolean;
   secretFindings: SecretFinding[];

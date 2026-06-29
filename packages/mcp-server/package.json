@@ -1,6 +1,6 @@
 {
   "name": "@codinfy/agent-monitor-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP server codinfy-agent-monitor",
   "type": "module",
   "main": "dist/index.js",

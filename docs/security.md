@@ -3,12 +3,12 @@
 Codinfy Agent Monitor is local-first and safe by default.
 
 - SQLite and reports stay in the Git-ignored `.codinfy-agent-monitor/` directory.
-- The dashboard binds to `127.0.0.1`.
-- The secret scanner uses `git ls-files` to respect ignored files and never returns matched secret values.
+- The dashboard binds to `127.0.0.1`, rejects non-loopback Host headers and foreign WebSocket origins, and limits concurrent sockets.
+- The secret scanner uses trusted Git inventory when available, falls back to a bounded filesystem inventory, rejects symlinks, reports unscanned files, and never returns matched source lines or secret values.
 - `.env`, private keys, credentials, logs, and local storage are blocked by `.gitignore`.
 - Safe Guard is enabled by default; the monitor does not delete project files, push, edit `.env`, run destructive migrations, or switch models.
 - Git inspection is read-only. Test/build execution occurs only with explicit `--run`.
-- Report and MCP output passes through redaction.
+- Monitor state is redacted before persistence; report, CLI, TUI and MCP output also pass through secret and terminal-control sanitization.
 
 Run this before a public commit:
 

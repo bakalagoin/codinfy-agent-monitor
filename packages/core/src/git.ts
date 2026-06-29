@@ -1,13 +1,44 @@
-import { execFileSync } from 'node:child_process';
+import { execTrustedFileSync } from './execution.js';
+import { redactSecrets } from './security.js';
 import type { GitSummary } from './types.js';
 
 function git(cwd: string, args: string[]): string {
-  return execFileSync('git', args, {
-    cwd,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-    timeout: 10_000,
-  }).trimEnd();
+  return execTrustedFileSync('git', args, { cwd, timeout: 10_000 }).trimEnd();
+}
+
+function sanitizeRemote(value: string): string {
+  try {
+    const remote = new URL(value);
+    if (remote.username || remote.password) {
+      remote.username = '';
+      remote.password = '';
+    }
+    return redactSecrets(remote.toString());
+  } catch {
+    return redactSecrets(value.replace(/^(https?:\/\/)[^/@\s]+@/i, '$1[REDACTED]@'));
+  }
+}
+
+export function getGitDiff(cwd: string, maxChars = 12_000): string {
+  try {
+    const staged = git(cwd, ['diff', '--cached']);
+    const unstaged = git(cwd, ['diff']);
+    const combined = [
+      staged ? `# Staged\n${staged}` : '',
+      unstaged ? `# Unstaged\n${unstaged}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+    if (!combined) return 'No tracked changes to diff.';
+    const redacted = redactSecrets(combined);
+    return redacted.length > maxChars
+      ? `${redacted.slice(0, maxChars)}\n… (diff truncated at ${maxChars} characters)`
+      : redacted;
+  } catch (error) {
+    return error instanceof Error
+      ? `Git diff unavailable: ${error.message}`
+      : 'Git diff unavailable';
+  }
 }
 
 export function getGitDiffStat(cwd: string): string {
@@ -53,7 +84,7 @@ export function getGitSummary(cwd: string): GitSummary {
       }
     }
     try {
-      summary.remote = git(cwd, ['remote', 'get-url', 'origin']);
+      summary.remote = sanitizeRemote(git(cwd, ['remote', 'get-url', 'origin']));
     } catch {
       /* no remote yet */
     }

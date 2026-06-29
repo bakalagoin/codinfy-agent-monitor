@@ -26,7 +26,7 @@ codinfy-agent-monitor watch
 codinfy-agent-monitor web
 ```
 
-The dashboard is local at `http://localhost:3579/dashboard`.
+The official dashboard route is local at `http://localhost:3579/codinfy`; `/dashboard` and `/codinfy-agent-monitor` are aliases.
 
 Created by CODINFY PLATFORMS SASU · Bakala Goin — Founder & CEO · codinfy.com
 © CODINFY PLATFORMS SASU · codinfy.com

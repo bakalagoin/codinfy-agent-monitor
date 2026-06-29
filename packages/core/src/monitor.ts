@@ -1,13 +1,14 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CODINFY_ATTRIBUTION } from './attribution.js';
 import { getEnvironmentStatus } from './environment.js';
+import { spawnTrusted } from './execution.js';
 import { getGitSummary } from './git.js';
 import { detectLanguage } from './i18n.js';
 import { getModelAdvice } from './model-router.js';
-import { checkAttribution, writeMarkdownReport } from './report.js';
-import { isSensitivePath, scanSecrets } from './security.js';
+import { analyzeObserver } from './observer.js';
+import { checkAttribution, writeReport, type ReportFormat } from './report.js';
+import { isSensitivePath, redactSecrets, scanSecrets } from './security.js';
 import { MonitorStore } from './storage.js';
 import type {
   AgentStatus,
@@ -17,11 +18,13 @@ import type {
   ModelCategory,
   MonitorSnapshot,
   MonitorTask,
+  ObserverReport,
   ReviewResult,
 } from './types.js';
 
 export class AgentMonitor {
   readonly store: MonitorStore;
+  private environmentCache?: EnvironmentStatus;
 
   constructor(projectRoot = process.cwd(), dataRoot?: string) {
     this.store = new MonitorStore(projectRoot, dataRoot);
@@ -46,6 +49,7 @@ export class AgentMonitor {
     const agents = this.store.listAgents();
     const tasks = this.store.listTasks();
     const timeline = this.store.timeline(12);
+    const git = getGitSummary(this.store.projectRoot);
     const activeAgents = agents.filter((agent) =>
       ['active', 'thinking', 'running', 'reading', 'writing'].includes(agent.status),
     ).length;
@@ -60,7 +64,7 @@ export class AgentMonitor {
       task: tasks.find((task) => task.status === 'in_progress')?.title ?? 'monitor project status',
       currentCategory: config.currentCategory,
       risk: blockers || errors ? 'high' : 'low',
-      fileCount: getGitSummary(this.store.projectRoot).files.length,
+      fileCount: git.files.length,
       activeAgents,
       contextUsage: metrics.context.value,
       dailyUsage: metrics.daily.value,
@@ -68,7 +72,6 @@ export class AgentMonitor {
       recentErrors: errors,
       level: config.level,
     });
-    const git = getGitSummary(this.store.projectRoot);
     return {
       project: config.projectName,
       session: config.sessionName,
@@ -138,7 +141,8 @@ export class AgentMonitor {
   }
 
   environment(): EnvironmentStatus {
-    return getEnvironmentStatus(this.store.projectRoot);
+    this.environmentCache ??= getEnvironmentStatus(this.store.projectRoot);
+    return this.environmentCache;
   }
 
   review(): ReviewResult {
@@ -194,32 +198,22 @@ export class AgentMonitor {
         ? 'yarn'
         : 'npm';
     const managerArgs = manager === 'npm' ? ['run', script] : [script];
-    const isWindows = process.platform === 'win32';
-    const command = isWindows
-      ? (process.env.ComSpec ?? 'cmd.exe')
-      : manager === 'pnpm' || manager === 'yarn'
-        ? 'corepack'
-        : manager;
-    const args = isWindows
-      ? [
-          '/d',
-          '/s',
-          '/c',
-          manager === 'pnpm' || manager === 'yarn'
-            ? `corepack ${manager} ${managerArgs.join(' ')}`
-            : `${manager} ${managerArgs.join(' ')}`,
-        ]
-      : manager === 'pnpm' || manager === 'yarn'
-        ? [manager, ...managerArgs]
-        : managerArgs;
-    const run = spawnSync(command, args, {
-      cwd: this.store.projectRoot,
-      encoding: 'utf8',
-      shell: false,
-      env: { ...process.env, CI: 'true' },
-      timeout: 300_000,
-    });
-    const output = `${run.stdout ?? ''}${run.stderr ?? ''}`.trim().slice(-20_000);
+    let run;
+    try {
+      run = spawnTrusted(manager, managerArgs, {
+        cwd: this.store.projectRoot,
+        env: { ...process.env, CI: 'true' },
+        timeout: 300_000,
+      });
+    } catch (error) {
+      const output = redactSecrets(error instanceof Error ? error.message : String(error));
+      this.store.recordEvent(`check.${kind}`, `${kind} failed`, {
+        success: false,
+        command: `${manager} ${managerArgs.join(' ')}`,
+      });
+      return { success: false, command: `${manager} ${managerArgs.join(' ')}`, output };
+    }
+    const output = redactSecrets(`${run.stdout ?? ''}${run.stderr ?? ''}`.trim().slice(-20_000));
     const success = run.status === 0;
     this.store.recordEvent(`check.${kind}`, `${kind} ${success ? 'passed' : 'failed'}`, {
       success,
@@ -228,9 +222,21 @@ export class AgentMonitor {
     return { success, command: `${manager} ${managerArgs.join(' ')}`, output };
   }
 
-  exportReport(withReview = true): string {
+  observer(): ObserverReport {
+    const snapshot = this.snapshot();
+    return analyzeObserver({
+      agents: snapshot.agents,
+      metrics: snapshot.metrics,
+      timeline: this.store.timeline(100),
+      advice: snapshot.advice,
+      currentCategory: this.store.getConfig().currentCategory,
+      sensitiveFiles: snapshot.git.files.filter(isSensitivePath).length,
+    });
+  }
+
+  exportReport(withReview = true, format: ReportFormat = 'md'): string {
     const review = withReview ? this.review() : undefined;
-    const path = writeMarkdownReport(this.store.dataRoot, this.snapshot(), review);
+    const path = writeReport(this.store.dataRoot, this.snapshot(), review, format);
     this.store.recordEvent('report.exported', `Report exported: ${path}`);
     return path;
   }

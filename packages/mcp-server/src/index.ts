@@ -10,6 +10,8 @@ import {
   CODINFY_ATTRIBUTION,
   DEFAULT_MODEL_CATALOG,
   detectDangerousCommand,
+  getDependencyHealth,
+  getGitDiff,
   getGitDiffStat,
   getModelAdvice,
   redactSecrets,
@@ -39,12 +41,14 @@ export const TOOL_NAMES = [
   'monitor.timeline',
   'monitor.alerts',
   'monitor.recommendations',
+  'monitor.observer',
   'monitor.git_status',
   'monitor.review_before_commit',
   'monitor.scan_secrets',
   'monitor.test_status',
   'monitor.build_status',
   'monitor.environment_status',
+  'monitor.dependency_health',
   'monitor.git_diff',
   'monitor.check_command',
   'monitor.commit_message',
@@ -67,7 +71,7 @@ function result(value: unknown) {
 
 export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   const server = new McpServer(
-    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.2' },
+    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.3' },
     {
       instructions:
         'Use monitor.status first. Usage metrics may be estimated. Never expose secrets. Model changes require user confirmation. Preserve Codinfy attribution.',
@@ -83,7 +87,11 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
     'monitor.open_dashboard',
     { description: 'Get the local dashboard URL. Start it with codinfy-agent-monitor web.' },
     async () =>
-      result({ url: 'http://localhost:3579/dashboard', command: 'codinfy-agent-monitor web' }),
+      result({
+        url: 'http://localhost:3579/codinfy',
+        aliases: ['/dashboard', '/codinfy-agent-monitor'],
+        command: 'codinfy-agent-monitor web',
+      }),
   );
   server.registerTool(
     'monitor.list_agents',
@@ -351,8 +359,14 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   server.registerTool(
     'monitor.recommendations',
     { description: 'Get Codix Observer recommendations.' },
-    async () =>
-      result({ observer: 'Codix Observer', recommendations: monitor.snapshot().advice.reasons }),
+    async () => result(monitor.observer()),
+  );
+  server.registerTool(
+    'monitor.observer',
+    {
+      description: 'Run Codix Observer: detect blockers and contextual recommendations.',
+    },
+    async () => result(monitor.observer()),
   );
   server.registerTool(
     'monitor.git_status',
@@ -390,9 +404,27 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
     async () => result(monitor.environment()),
   );
   server.registerTool(
+    'monitor.dependency_health',
+    {
+      description:
+        'Inspect dependency health. Read-only unless run=true (which may use the network).',
+      inputSchema: { run: z.boolean().optional() },
+    },
+    async ({ run }) => result(getDependencyHealth(monitor.store.projectRoot, Boolean(run))),
+  );
+  server.registerTool(
     'monitor.git_diff',
-    { description: 'Get a read-only Git diff summary (stat only).' },
-    async () => result({ diff: getGitDiffStat(monitor.store.projectRoot) }),
+    {
+      description:
+        'Get a read-only Git diff. Stat only by default; full returns the redacted patch.',
+      inputSchema: { full: z.boolean().optional() },
+    },
+    async ({ full }) =>
+      result({
+        diff: full
+          ? getGitDiff(monitor.store.projectRoot)
+          : getGitDiffStat(monitor.store.projectRoot),
+      }),
   );
   server.registerTool(
     'monitor.check_command',
@@ -565,9 +597,16 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   );
   server.registerTool(
     'monitor.export_report',
-    { description: 'Export a redacted Markdown session report locally.' },
-    async () =>
-      result({ path: monitor.exportReport(true), signature: CODINFY_ATTRIBUTION.signature }),
+    {
+      description: 'Export a redacted session report locally (formats: md, json, html).',
+      inputSchema: { format: z.enum(['md', 'json', 'html']).optional() },
+    },
+    async ({ format }) =>
+      result({
+        path: monitor.exportReport(true, format ?? 'md'),
+        format: format ?? 'md',
+        signature: CODINFY_ATTRIBUTION.signature,
+      }),
   );
 
   return server;

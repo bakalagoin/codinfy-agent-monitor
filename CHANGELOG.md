@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.3 — 2026-06-29
+
+### Added
+
+- Codix Observer: blocker detection (stalled/blocked/error agents, repeated file reads, repeated command failures, 429/rate-limit bursts) and contextual recommendations (high context, usage pressure, model mismatch, missing security review). Exposed via the `observer` CLI command and `monitor.observer` MCP tool, and now powering `monitor.recommendations`.
+- Dependency health helper with the `deps` CLI command (`--run` to execute outdated/audit) and the `monitor.dependency_health` MCP tool, using trusted executable resolution and redacted output.
+- Enriched developer commands: `diff --full` (redacted patch content), `history` (recent commands/checks with success markers), and report export in `md`, `json`, or `html` via `export --format` and the `monitor.export_report` format parameter.
+- JSON and HTML session report renderers with full Codinfy attribution; extended fr/en i18n keys (observer, recommendations, dependencies, history, report).
+- Immersive glass mission-control dashboard with responsive navigation, animated usage meters, workflow rail, agent radar, live timeline, release health, Git, environment, AI Credit Saver and official Codinfy social identity.
+- Official web routes `/codinfy` and `/codinfy-agent-monitor`, alongside the compatible `/dashboard` alias.
+- Security regressions for project-root propagation, Git remote credential redaction, scanner fallback, symlink storage rejection, hook isolation and terminal-control sanitization.
+
+### Security
+
+- Restricted HTTP Host and WebSocket Origin to loopback, capped live sockets, and added browser hardening headers.
+- Replaced project-local executable lookup with trusted absolute resolution for Git, environment probes and package-manager commands.
+- Redacted secrets before durable storage and report generation; bounded persistent event history.
+- Made secret scanning fail closed for inventory gaps, symlinks, unreadable, binary and oversized files without exposing source-line previews.
+- Pinned GitHub Actions by commit SHA and added a tracked-worktree integrity gate before public-release checks.
+
+### Fixed
+
+- Applied the global `--project` option consistently to CLI status, test/build, review, reset and guided commands.
+- Fixed the generated dashboard route parser that prevented live data from rendering.
+- Loaded expensive release/environment checks progressively so the live command center becomes useful first.
+
+### Changed
+
+- Bumped all workspace package versions to `0.1.3`.
+
 ## 0.1.2 — 2026-06-28
 
 ### Added

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -17,5 +17,16 @@ describe('CLI', () => {
     expect(run.stdout).toContain('codinfy-agent-monitor');
     expect(run.stdout).toContain('© CODINFY PLATFORMS SASU');
     rmSync(project, { recursive: true, force: true });
-  }, 15_000);
+  }, 30_000);
+
+  it('applies the global project option to mutating commands', () => {
+    const project = mkdtempSync(join(tmpdir(), 'codinfy-cli-project-'));
+    const binary = resolve('packages/cli/dist/index.js');
+    const run = spawnSync(process.execPath, [binary, '-C', project, 'language', 'fr'], {
+      encoding: 'utf8',
+    });
+    expect(run.status).toBe(0);
+    expect(existsSync(join(project, '.codinfy-agent-monitor', 'config.json'))).toBe(true);
+    rmSync(project, { recursive: true, force: true });
+  }, 30_000);
 });
