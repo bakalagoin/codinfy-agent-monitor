@@ -113,6 +113,6 @@ Le projet est-il prêt ? **Oui.**
 
 Le dépôt public `bakalagoin/codinfy-agent-monitor` contient une V1.3 fonctionnelle, documentée, testée, sécurisée et fidèle aux prompts. Les seules limites restantes sont celles qui dépendent volontairement des métriques ou hooks fournis par les outils hôtes.
 
-Codinfy Agent Monitor · `/codinfy` · `codinfy-agent-monitor`  
-Created by CODINFY PLATFORMS SASU · Bakala Goin — Founder & CEO · codinfy.com  
+Codinfy Agent Monitor · `/codinfy` · `codinfy-agent-monitor`<br>
+Created by CODINFY PLATFORMS SASU · Bakala Goin — Founder & CEO · codinfy.com<br>
 © CODINFY PLATFORMS SASU · codinfy.com
