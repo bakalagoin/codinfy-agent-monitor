@@ -6,9 +6,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   AgentMonitor,
   CODINFY_ATTRIBUTION,
+  analyzeNodeInventory,
   analyzeObserver,
+  buildProjectProcessMap,
+  buildResourceGuard,
   categoryForScore,
   checkAttribution,
+  compareSemanticVersions,
+  controlNodeProcess,
+  createConfigurationBackup,
   detectDangerousCommand,
   getGitSummary,
   getModelAdvice,
@@ -16,6 +22,7 @@ import {
   renderHtmlReport,
   renderJsonReport,
   renderMarkdownReport,
+  restoreConfigurationBackup,
   sanitizeTerminalText,
   scanSecrets,
   spawnTrusted,
@@ -291,6 +298,120 @@ describe('Codinfy Agent Monitor core', () => {
     expect(html).toContain('Codinfy Agent Monitor');
     expect(html).toContain(CODINFY_ATTRIBUTION.signature);
     expect(redactSecrets(html)).toBe(html);
+    monitor.close();
+  });
+});
+
+describe('Codinfy Agent Monitor v0.2 process safety', () => {
+  it('classifies live Node ports, projects, conflicts, and protected identities', () => {
+    const project = root();
+    const report = analyzeNodeInventory(
+      {
+        processes: [
+          {
+            pid: 41001,
+            ppid: process.pid,
+            name: 'node.exe',
+            command: `"C:\\Program Files\\nodejs\\node.exe" "${join(project, 'node_modules', 'vite', 'bin', 'vite.js')}"`,
+            cpuPercent: 2.5,
+            memoryBytes: 128 * 1024 * 1024,
+          },
+          { pid: 41002, ppid: process.pid, name: 'node.exe', command: 'node --inspect' },
+        ],
+        listeners: [
+          { address: '127.0.0.1', port: 5173, pid: 41001, processName: 'node.exe' },
+          { address: '::1', port: 5173, pid: 41002, processName: 'node.exe' },
+        ],
+      },
+      'win32',
+    );
+    expect(report.totals).toMatchObject({ active: 2, openPorts: 1, conflicts: 1 });
+    expect(report.processes[0]).toMatchObject({ framework: 'Vite', protected: false });
+    expect(report.processes[1]).toMatchObject({ project: 'Unknown project', protected: true });
+    expect(buildProjectProcessMap(report).projects[0]?.ports).toEqual([5173]);
+    expect(buildResourceGuard(report).source).toBe('live');
+  });
+
+  it('refuses process changes without confirmation and gates Force Kill', async () => {
+    let terminated = false;
+    const target = {
+      pid: 41001,
+      ppid: 1,
+      name: 'node',
+      command: 'node server.js',
+      workingDirectory: root(),
+      framework: 'Node.js',
+      project: 'sample-app',
+      ports: [],
+      status: 'running' as const,
+      risk: 'low' as const,
+      protected: false,
+      protectionReasons: [],
+      orphanReasons: [],
+      recommendation: 'Healthy process. Continue monitoring.',
+    };
+    const dependencies = {
+      inspect: () => target,
+      terminate: () => {
+        terminated = true;
+      },
+      alive: () => false,
+      wait: async () => undefined,
+    };
+    const unconfirmed = await controlNodeProcess(
+      { pid: target.pid, action: 'stop', confirm: false },
+      process.cwd(),
+      dependencies,
+    );
+    expect(unconfirmed.status).toBe('refused');
+    expect(terminated).toBe(false);
+    const ungatedKill = await controlNodeProcess(
+      { pid: target.pid, action: 'kill', confirm: true, gracefulAttempted: false },
+      process.cwd(),
+      dependencies,
+    );
+    expect(ungatedKill.status).toBe('refused');
+    const stopped = await controlNodeProcess(
+      {
+        pid: target.pid,
+        action: 'stop',
+        confirm: true,
+        expected: { project: 'sample-app' },
+      },
+      process.cwd(),
+      dependencies,
+    );
+    expect(stopped.status).toBe('stopped');
+    expect(terminated).toBe(true);
+  });
+
+  it('compares stable and prerelease semantic versions', () => {
+    expect(compareSemanticVersions('0.1.4', '0.2.0')).toBe(-1);
+    expect(compareSemanticVersions('v0.2.0', '0.2.0')).toBe(0);
+    expect(compareSemanticVersions('0.2.0-beta.2', '0.2.0-beta.10')).toBe(-1);
+    expect(compareSemanticVersions('0.2', '0.2.0')).toBeNull();
+  });
+
+  it('creates checksum-protected configuration backups and requires restore confirmation', () => {
+    const project = root();
+    const monitor = new AgentMonitor(project);
+    monitor.startSession('Backup test', 'Vitest');
+    const backup = createConfigurationBackup(monitor.store.dataRoot);
+    expect(backup.valid).toBe(true);
+    expect(
+      restoreConfigurationBackup({
+        dataRoot: monitor.store.dataRoot,
+        backupPath: backup.path,
+        confirm: false,
+      }).ok,
+    ).toBe(false);
+    expect(
+      restoreConfigurationBackup({
+        dataRoot: monitor.store.dataRoot,
+        backupPath: backup.path,
+        confirm: true,
+      }).ok,
+    ).toBe(true);
     monitor.close();
   });
 });

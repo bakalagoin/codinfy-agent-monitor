@@ -1,15 +1,29 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CODINFY_ATTRIBUTION } from './attribution.js';
+import {
+  createConfigurationBackup,
+  listConfigurationBackups,
+  restoreConfigurationBackup,
+} from './backup.js';
+import { runHealthDoctor } from './doctor.js';
 import { getEnvironmentStatus } from './environment.js';
 import { spawnTrusted } from './execution.js';
 import { getGitSummary } from './git.js';
 import { detectLanguage } from './i18n.js';
 import { getModelAdvice } from './model-router.js';
+import { inspectNodeProcess, scanNodeServers } from './node-monitor.js';
 import { analyzeObserver } from './observer.js';
+import {
+  controlNodeProcess,
+  nodeCleanupRecommendations,
+  type ProcessControlRequest,
+} from './process-control.js';
 import { checkAttribution, writeReport, type ReportFormat } from './report.js';
+import { getProjectProcessMap, getResourceGuard } from './resource-guard.js';
 import { isSensitivePath, redactSecrets, scanSecrets } from './security.js';
 import { MonitorStore } from './storage.js';
+import { checkForUpdates, installNpmUpdate, updatePreflight } from './update-center.js';
 import type {
   AgentStatus,
   EnvironmentStatus,
@@ -288,6 +302,117 @@ export class AgentMonitor {
   attribution() {
     return CODINFY_ATTRIBUTION;
   }
+
+  nodeServers() {
+    return scanNodeServers(this.store.projectRoot);
+  }
+
+  nodePorts() {
+    const report = this.nodeServers();
+    return { generatedAt: report.generatedAt, ports: report.ports, conflicts: report.conflicts };
+  }
+
+  nodeOrphans() {
+    const report = this.nodeServers();
+    return report.processes.filter((item) => item.status === 'orphan');
+  }
+
+  inspectNodeProcess(pid: number) {
+    return inspectNodeProcess(pid, this.store.projectRoot);
+  }
+
+  nodeCleanupRecommendations() {
+    return nodeCleanupRecommendations(this.store.projectRoot);
+  }
+
+  async controlNodeProcess(request: ProcessControlRequest) {
+    const result = await controlNodeProcess(request, this.store.projectRoot);
+    this.store.recordEvent(`node.${request.action}.${result.status}`, result.message, {
+      pid: request.pid,
+      ok: result.ok,
+      confirmed: request.confirm === true,
+    });
+    return result;
+  }
+
+  projectProcessMap() {
+    return getProjectProcessMap(this.store.projectRoot);
+  }
+
+  resourceGuard() {
+    return getResourceGuard(this.store.projectRoot);
+  }
+
+  async updateStatus() {
+    const settings = this.store.getConfig().updates;
+    const status = await checkForUpdates({
+      repository: settings.repository,
+      channel: settings.channel,
+      projectRoot: this.store.projectRoot,
+    });
+    this.store.recordEvent(
+      'update.checked',
+      status.error ?? `Latest version: ${status.latestVersion ?? 'unknown'}`,
+      {
+        currentVersion: status.currentVersion,
+        latestVersion: status.latestVersion,
+        updateAvailable: status.updateAvailable,
+      },
+    );
+    return status;
+  }
+
+  updatePreflight() {
+    return updatePreflight(
+      this.store.projectRoot,
+      listConfigurationBackups(this.store.dataRoot).length > 0,
+    );
+  }
+
+  installUpdate(version: string, confirm: boolean, allowDowngrade = false) {
+    const result = installNpmUpdate({
+      version,
+      confirm,
+      projectRoot: this.store.projectRoot,
+      allowDowngrade,
+    });
+    this.store.recordEvent(`update.install.${result.status}`, result.message, {
+      version,
+      confirmed: confirm === true,
+    });
+    return result;
+  }
+
+  createBackup() {
+    const backup = createConfigurationBackup(this.store.dataRoot);
+    this.store.recordEvent('backup.created', `Configuration backup created: ${backup.file}`);
+    return backup;
+  }
+
+  listBackups() {
+    return listConfigurationBackups(this.store.dataRoot);
+  }
+
+  restoreBackup(backupPath: string, confirm: boolean) {
+    const result = restoreConfigurationBackup({
+      dataRoot: this.store.dataRoot,
+      backupPath,
+      confirm,
+    });
+    this.store.recordEvent(
+      `backup.restore.${result.ok ? 'completed' : 'refused'}`,
+      result.message,
+      {
+        confirmed: confirm === true,
+      },
+    );
+    return result;
+  }
+
+  healthDoctor() {
+    return runHealthDoctor(this.store.projectRoot, this.store.dataRoot);
+  }
+
   reset(): void {
     this.store.reset();
   }

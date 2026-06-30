@@ -72,6 +72,41 @@ function trustedWindowsShell(): string {
   return shell;
 }
 
+/**
+ * Execute a PowerShell program that is fully defined by Codinfy Agent Monitor.
+ *
+ * This helper deliberately does not accept arguments to interpolate into the
+ * program. Callers must use it only with a static source string. Keeping this
+ * separate from spawnTrusted prevents user-controlled values from becoming
+ * PowerShell code while still allowing read-only Windows system inventory.
+ */
+export function execTrustedStaticPowerShell(
+  source: string,
+  options: { cwd: string; timeout?: number },
+): string {
+  if (process.platform !== 'win32')
+    throw new Error('Static PowerShell execution is only available on Windows.');
+  if (!source.trim()) throw new Error('A static PowerShell program is required.');
+  const windowsRoot = process.env.SystemRoot ?? 'C:\\Windows';
+  const candidates = [
+    join(windowsRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    join(windowsRoot, 'Sysnative', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+  ];
+  const executable = candidates.find((candidate) => existsSync(candidate));
+  if (!executable) throw new Error('Trusted Windows PowerShell executable not found.');
+  return execFileSync(
+    executable,
+    ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', source],
+    {
+      cwd: options.cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: options.timeout ?? 15_000,
+      windowsHide: true,
+    },
+  );
+}
+
 function safeCommandArgument(value: string): string {
   if (!/^[a-z0-9_:@./\\=+() -]+$/i.test(value))
     throw new Error(`Unsafe package-manager argument rejected: ${value}`);

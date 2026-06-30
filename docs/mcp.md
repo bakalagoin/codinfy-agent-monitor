@@ -9,6 +9,10 @@ codinfy-agent-monitor mcp
 Tool families:
 
 - status and dashboard: `monitor.status`, `monitor.open_dashboard`;
+- Node operations: `monitor.node_servers`, `monitor.node_ports`, `monitor.node_orphans`, `monitor.node_inspect_process`, `monitor.node_stop_process`, `monitor.node_kill_process`, `monitor.node_refresh`, `monitor.node_cleanup_recommendations`;
+- developer health: `monitor.port_conflicts`, `monitor.project_process_map`, `monitor.resource_guard`, `monitor.health_doctor`;
+- updates: `monitor.update_check`, `monitor.update_status`, `monitor.update_changelog`, `monitor.update_install`, `monitor.update_rollback`, `monitor.update_settings`, `monitor.update_history`;
+- continuity: `monitor.backup_create`, `monitor.backup_list`, `monitor.backup_restore`, `monitor.session_recovery`, `monitor.notifications`;
 - agents: `monitor.list_agents`, `monitor.register_agent`, `monitor.update_agent_state`;
 - limits: context, rate, daily, weekly;
 - AI Credit Saver: advice, score, budget, cost, economy plan;

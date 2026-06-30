@@ -39,6 +39,18 @@ function withMonitor<T>(action: (monitor: AgentMonitor) => T, root?: string): T 
   }
 }
 
+async function withMonitorAsync<T>(
+  action: (monitor: AgentMonitor) => Promise<T>,
+  root?: string,
+): Promise<T> {
+  const monitor = new AgentMonitor(root ?? program.opts<{ project: string }>().project);
+  try {
+    return await action(monitor);
+  } finally {
+    monitor.close();
+  }
+}
+
 function addSimpleSnapshotCommand(
   name: string,
   description: string,
@@ -55,7 +67,7 @@ program
   .description(
     'Codinfy Agent Monitor — real-time AI agent, workflow, usage, Git and security monitoring.',
   )
-  .version('0.1.4')
+  .version('0.2.0')
   .option('-C, --project <path>', 'project root to monitor', process.cwd())
   .showHelpAfterError();
 
@@ -457,18 +469,8 @@ program
   });
 program
   .command('doctor')
-  .description('Check runtime, storage, Git, and attribution.')
-  .action(() =>
-    withMonitor((monitor) =>
-      print({
-        node: process.version,
-        dataRoot: monitor.store.dataRoot,
-        database: monitor.store.databasePath,
-        environment: monitor.environment(),
-        attributionMissing: checkAttribution(monitor.store.projectRoot),
-      }),
-    ),
-  );
+  .description('Diagnose Codinfy MCP, runtime, storage, attribution, and port health.')
+  .action(() => withMonitor((monitor) => print(monitor.healthDoctor())));
 program
   .command('about')
   .description('Show official creator, identity, and social credits.')
@@ -740,6 +742,227 @@ program
       print(entries.length ? entries : 'No command history recorded yet.');
     }),
   );
+
+const nodeCommand = program
+  .command('node')
+  .description('Monitor Node.js servers, listening ports, projects, resources, and safe cleanup.');
+
+nodeCommand.action(() => withMonitor((monitor) => print(monitor.nodeServers())));
+nodeCommand
+  .command('servers')
+  .alias('refresh')
+  .description('Refresh the live Node server inventory.')
+  .action(() => withMonitor((monitor) => print(monitor.nodeServers())));
+nodeCommand
+  .command('ports')
+  .description('Show Node-owned listening ports and conflicts.')
+  .action(() => withMonitor((monitor) => print(monitor.nodePorts())));
+nodeCommand
+  .command('orphans')
+  .description('Show conservative orphan-process candidates.')
+  .action(() => withMonitor((monitor) => print(monitor.nodeOrphans())));
+nodeCommand
+  .command('inspect <pid>')
+  .description('Inspect one live Node process without changing it.')
+  .action((pid: string) =>
+    withMonitor((monitor) =>
+      print(monitor.inspectNodeProcess(Number(pid)) ?? 'Process not found.'),
+    ),
+  );
+nodeCommand
+  .command('cleanup')
+  .description('Show cleanup recommendations; no process is changed.')
+  .action(() => withMonitor((monitor) => print(monitor.nodeCleanupRecommendations())));
+nodeCommand
+  .command('stop <pid>')
+  .description('Request a graceful stop after live identity revalidation.')
+  .requiredOption('--confirm', 'confirm the selected process identity and impact')
+  .option('--project-name <name>', 'expected project identity')
+  .option('--framework <name>', 'expected framework identity')
+  .option('--port <port>', 'expected listening port')
+  .action(
+    async (
+      pid: string,
+      options: { confirm: boolean; projectName?: string; framework?: string; port?: string },
+    ) =>
+      withMonitorAsync(async (monitor) => {
+        const result = await monitor.controlNodeProcess({
+          pid: Number(pid),
+          action: 'stop',
+          confirm: options.confirm === true,
+          expected: {
+            project: options.projectName,
+            framework: options.framework,
+            port: options.port ? Number(options.port) : undefined,
+          },
+        });
+        print(result);
+        if (!result.ok) process.exitCode = 1;
+      }),
+  );
+nodeCommand
+  .command('kill <pid>')
+  .description('Force Kill only after a failed graceful stop and a second confirmation.')
+  .requiredOption('--confirm', 'confirm Force Kill after reviewing the process again')
+  .requiredOption('--graceful-attempted', 'confirm that graceful stop was attempted and failed')
+  .option('--project-name <name>', 'expected project identity')
+  .option('--port <port>', 'expected listening port')
+  .action(
+    async (
+      pid: string,
+      options: {
+        confirm: boolean;
+        gracefulAttempted: boolean;
+        projectName?: string;
+        port?: string;
+      },
+    ) =>
+      withMonitorAsync(async (monitor) => {
+        const result = await monitor.controlNodeProcess({
+          pid: Number(pid),
+          action: 'kill',
+          confirm: options.confirm === true,
+          gracefulAttempted: options.gracefulAttempted === true,
+          expected: {
+            project: options.projectName,
+            port: options.port ? Number(options.port) : undefined,
+          },
+        });
+        print(result);
+        if (!result.ok) process.exitCode = 1;
+      }),
+  );
+
+program
+  .command('process-map')
+  .description('Group live Node processes by detected project.')
+  .action(() => withMonitor((monitor) => print(monitor.projectProcessMap())));
+program
+  .command('resource-guard')
+  .description('Show live system and Node resource pressure with safe recommendations.')
+  .action(() => withMonitor((monitor) => print(monitor.resourceGuard())));
+const updateCommand = program
+  .command('update')
+  .description('MCP Update Center: check releases, preflight, backup, install, and rollback.');
+updateCommand.action(() =>
+  withMonitorAsync(async (monitor) => print(await monitor.updateStatus())),
+);
+for (const command of ['check', 'status'] as const) {
+  updateCommand
+    .command(command)
+    .description(
+      command === 'check'
+        ? 'Check GitHub for a published release.'
+        : 'Show current and latest versions.',
+    )
+    .action(() => withMonitorAsync(async (monitor) => print(await monitor.updateStatus())));
+}
+updateCommand
+  .command('changelog')
+  .description('Show release notes and detected breaking changes from GitHub.')
+  .action(() =>
+    withMonitorAsync(async (monitor) => {
+      const status = await monitor.updateStatus();
+      print(status.release ?? { error: status.error ?? 'No release notes available.' });
+    }),
+  );
+updateCommand
+  .command('preflight')
+  .description('Run the safety checklist before an update.')
+  .action(() => withMonitor((monitor) => print(monitor.updatePreflight())));
+updateCommand
+  .command('install <version>')
+  .description('Install a confirmed npm-global version after backup and preflight.')
+  .requiredOption('--confirm', 'confirm the target version, backup, and installation impact')
+  .action((version: string, options: { confirm: boolean }) =>
+    withMonitor((monitor) => {
+      if (options.confirm !== true) {
+        print({ installed: false, requiresConfirmation: true });
+        process.exitCode = 1;
+        return;
+      }
+      const backup = monitor.createBackup();
+      const preflight = monitor.updatePreflight();
+      if (!preflight.ready) {
+        print({ installed: false, backup, preflight });
+        process.exitCode = 1;
+        return;
+      }
+      const result = monitor.installUpdate(version, true);
+      print({ backup, preflight, result });
+      if (!result.ok) process.exitCode = 1;
+    }),
+  );
+updateCommand
+  .command('rollback <version>')
+  .description('Reinstall a confirmed previous npm-global version; creates a safety backup.')
+  .requiredOption('--confirm', 'confirm the rollback target and impact')
+  .action((version: string, options: { confirm: boolean }) =>
+    withMonitor((monitor) => {
+      const backup = options.confirm === true ? monitor.createBackup() : undefined;
+      const result = monitor.installUpdate(version, options.confirm === true, true);
+      print({ backup, result, rollback: true });
+      if (!result.ok) process.exitCode = 1;
+    }),
+  );
+updateCommand
+  .command('settings')
+  .description('Show safe update settings. Auto-install is permanently disabled.')
+  .action(() =>
+    withMonitor((monitor) => print({ ...monitor.store.getConfig().updates, autoInstall: false })),
+  );
+updateCommand
+  .command('history')
+  .description('Show local update and backup activity.')
+  .action(() =>
+    withMonitor((monitor) =>
+      print(monitor.store.timeline(100).filter((event) => /^(update|backup)\./.test(event.type))),
+    ),
+  );
+
+const backupCommand = program
+  .command('backup')
+  .description('Create and inspect checksum-protected configuration backups.');
+backupCommand.action(() => withMonitor((monitor) => print(monitor.createBackup())));
+backupCommand
+  .command('list')
+  .description('List local Codinfy configuration backups.')
+  .action(() => withMonitor((monitor) => print(monitor.listBackups())));
+backupCommand
+  .command('restore <path>')
+  .description('Restore a local backup after checksum verification and confirmation.')
+  .requiredOption('--confirm', 'confirm replacement of the current configuration')
+  .action((path: string, options: { confirm: boolean }) =>
+    withMonitor((monitor) => {
+      const result = monitor.restoreBackup(path, options.confirm === true);
+      print(result);
+      if (!result.ok) process.exitCode = 1;
+    }),
+  );
+
+program
+  .command('recovery')
+  .description('Show a read-only session recovery brief from local state.')
+  .action(() =>
+    withMonitor((monitor) => {
+      const snapshot = monitor.snapshot();
+      print({
+        session: snapshot.session,
+        project: snapshot.project,
+        latestAction: snapshot.latestAction,
+        activeTasks: snapshot.tasks.filter((task) => task.status === 'in_progress'),
+        blockers: snapshot.tasks.filter((task) => task.status === 'blocked'),
+        modifiedFiles: snapshot.git.files,
+        recentActivity: monitor.store.timeline(20),
+        actionApplied: false,
+      });
+    }),
+  );
+
+program
+  .command('notifications')
+  .description('Show local notification preferences; no external message is sent.')
+  .action(() => withMonitor((monitor) => print(monitor.store.getConfig().notifications)));
 
 program
   .command('web')

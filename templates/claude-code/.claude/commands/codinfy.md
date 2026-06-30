@@ -1,6 +1,6 @@
 ---
-description: Open Codinfy Agent Monitor status, limits, agents, workflow, Git, review, saver, environment, or reports.
-argument-hint: '[status|agents|context|limits|workflow|timeline|saver|budget|model-advice|git|review|environment|export|about]'
+description: Open Codinfy Agent Monitor status, Node servers, updates, limits, workflow, Git, review, environment, or reports.
+argument-hint: '[status|agents|node|ports|process-map|resources|update|doctor|recovery|context|limits|workflow|git|review|export|about]'
 ---
 
 # /codinfy — Codinfy Agent Monitor
@@ -12,6 +12,7 @@ Rules:
 - Say when usage data is estimated rather than official.
 - Never reveal secrets; use `monitor.scan_secrets` and return only redacted findings.
 - Never switch models automatically; obtain explicit user confirmation.
+- Never stop or kill a process, install or roll back an update, or restore a backup without explicit confirmation and live identity/preflight checks.
 - Run `monitor.review_before_commit` before proposing a commit.
 - Preserve the product identity, `/codinfy`, and MCP name `codinfy-agent-monitor`.
 

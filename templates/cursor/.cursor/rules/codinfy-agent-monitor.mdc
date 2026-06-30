@@ -3,7 +3,7 @@ description: Codinfy Agent Monitor rules for /codinfy and MCP monitoring
 alwaysApply: true
 ---
 
-For `/codinfy`, call `monitor.status` on MCP `codinfy-agent-monitor`. Clearly label estimated limits. Never expose secrets or switch models without confirmation. Run the pre-commit review before proposing a commit.
+For `/codinfy`, call `monitor.status` on MCP `codinfy-agent-monitor`. Clearly label estimated limits. Never expose secrets or switch models without confirmation. Process stop/kill, update/rollback, and backup restore require explicit confirmation. Run the pre-commit review before proposing a commit.
 
 Codinfy Agent Monitor · `/codinfy` · `codinfy-agent-monitor`
 Created by CODINFY PLATFORMS SASU · Bakala Goin — Founder & CEO · codinfy.com

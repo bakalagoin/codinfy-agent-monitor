@@ -14,6 +14,27 @@ import type {
   UsageMetric,
 } from './types.js';
 
+const updateSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  checkOnStartup: z.boolean().default(true),
+  checkIntervalHours: z.number().int().min(1).max(168).default(12),
+  channel: z.enum(['stable', 'prerelease']).default('stable'),
+  autoInstall: z.literal(false).default(false),
+  notifyPrerelease: z.boolean().default(false),
+  repository: z
+    .string()
+    .regex(/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i)
+    .default('bakalagoin/codinfy-agent-monitor'),
+});
+
+const notificationSettingsSchema = z.object({
+  updates: z.boolean().default(true),
+  portConflicts: z.boolean().default(true),
+  orphanProcesses: z.boolean().default(true),
+  resourceWarnings: z.boolean().default(true),
+  desktop: z.boolean().default(false),
+});
+
 const configSchema = z.object({
   projectName: z.string().min(1).max(240),
   sessionName: z.string().min(1).max(240).default('Local monitoring'),
@@ -34,6 +55,22 @@ const configSchema = z.object({
   language: z.enum(['auto', 'fr', 'en']).default('auto'),
   level: z.enum(['beginner', 'intermediate', 'expert']).default('intermediate'),
   safeGuard: z.boolean().default(true),
+  updates: updateSettingsSchema.default({
+    enabled: true,
+    checkOnStartup: true,
+    checkIntervalHours: 12,
+    channel: 'stable',
+    autoInstall: false,
+    notifyPrerelease: false,
+    repository: 'bakalagoin/codinfy-agent-monitor',
+  }),
+  notifications: notificationSettingsSchema.default({
+    updates: true,
+    portConflicts: true,
+    orphanProcesses: true,
+    resourceWarnings: true,
+    desktop: false,
+  }),
 });
 
 export type MonitorConfig = z.infer<typeof configSchema>;
@@ -116,7 +153,16 @@ export class MonitorStore {
   }
 
   private ensureDirectories(): void {
-    for (const directory of ['', 'sessions', 'agents', 'workflows', 'logs', 'reports', 'cache']) {
+    for (const directory of [
+      '',
+      'sessions',
+      'agents',
+      'workflows',
+      'logs',
+      'reports',
+      'cache',
+      'backups',
+    ]) {
       const path = join(this.dataRoot, directory);
       assertNotSymbolicLink(path);
       mkdirSync(path, { recursive: true, mode: 0o700 });
@@ -162,6 +208,22 @@ export class MonitorStore {
       language: 'auto',
       level: 'intermediate',
       safeGuard: true,
+      updates: {
+        enabled: true,
+        checkOnStartup: true,
+        checkIntervalHours: 12,
+        channel: 'stable',
+        autoInstall: false,
+        notifyPrerelease: false,
+        repository: 'bakalagoin/codinfy-agent-monitor',
+      },
+      notifications: {
+        updates: true,
+        portConflicts: true,
+        orphanProcesses: true,
+        resourceWarnings: true,
+        desktop: false,
+      },
     };
     let config = defaults;
     if (existsSync(this.configPath)) {

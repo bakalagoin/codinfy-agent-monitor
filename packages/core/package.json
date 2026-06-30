@@ -1,6 +1,6 @@
 {
   "name": "@codinfy/agent-monitor-core",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Core monitoring engine for Codinfy Agent Monitor",
   "type": "module",
   "main": "dist/index.js",

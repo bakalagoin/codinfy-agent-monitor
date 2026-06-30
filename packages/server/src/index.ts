@@ -1,12 +1,17 @@
 import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
 import {
   AgentMonitor,
   CODINFY_ATTRIBUTION,
+  buildProjectProcessMap,
+  buildResourceGuard,
   getDependencyHealth,
   redactSecrets,
+  runHealthDoctor,
+  type NodeServerReport,
 } from '@codinfy/agent-monitor-core';
 
 const PAGES = [
@@ -28,6 +33,16 @@ const PAGES = [
   'security',
   'performance',
   'reports',
+  'node-servers',
+  'port-conflicts',
+  'process-map',
+  'resource-guard',
+  'update-center',
+  'release-notes',
+  'backup-restore',
+  'doctor',
+  'recovery',
+  'notifications',
   'settings',
   'about',
 ] as const;
@@ -51,6 +66,16 @@ const NAVIGATION = [
   { page: 'security', label: 'Security', icon: 'SC' },
   { page: 'performance', label: 'Codix Observer', icon: 'OB' },
   { page: 'reports', label: 'Reports', icon: 'RP' },
+  { page: 'node-servers', label: 'Node Server Monitor', icon: 'NS' },
+  { page: 'port-conflicts', label: 'Port Conflict Resolver', icon: 'PC' },
+  { page: 'process-map', label: 'Project Process Map', icon: 'PM' },
+  { page: 'resource-guard', label: 'Resource Guard', icon: 'RG' },
+  { page: 'update-center', label: 'MCP Update Center', icon: 'UP' },
+  { page: 'release-notes', label: 'Release Notes', icon: 'RN' },
+  { page: 'backup-restore', label: 'Backup & Restore', icon: 'BR' },
+  { page: 'doctor', label: 'MCP Health Doctor', icon: 'DR' },
+  { page: 'recovery', label: 'Session Recovery', icon: 'RC' },
+  { page: 'notifications', label: 'Notifications', icon: 'NT' },
   { page: 'settings', label: 'Settings', icon: 'ST' },
   { page: 'about', label: 'About Codinfy', icon: 'CO' },
 ] as const;
@@ -125,6 +150,7 @@ function dashboardHtml(): string {
 .health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.health-item{min-height:82px;padding:13px;border:1px solid rgba(109,161,201,.15);border-radius:11px;background:rgba(4,13,23,.3)}.health-icon{font-size:20px;margin-bottom:8px}.health-name{font:600 9px "Cascadia Code",Consolas,monospace;color:#7891a4;text-transform:uppercase}.health-value{margin-top:4px;font-size:11px;font-weight:650}.healthy{color:var(--green)}.warning{color:var(--amber)}.danger{color:var(--red)}
 .git-summary{display:grid;gap:12px}.git-branch{font:700 18px "Cascadia Code",Consolas,monospace}.git-stat{display:flex;gap:8px;flex-wrap:wrap}.mini-stat{padding:6px 8px;border:1px solid var(--line);border-radius:8px;color:#829daf;font:9px "Cascadia Code",Consolas,monospace}.code-line{padding:10px;border-radius:9px;background:#050d17;border:1px solid rgba(108,164,205,.12);color:#6e8799;font:9px/1.5 "Cascadia Code",Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.env-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.env-item{padding:11px;border-left:2px solid rgba(66,213,255,.45);background:rgba(4,13,23,.28)}.env-label{color:#607d91;font:8px "Cascadia Code",Consolas,monospace;text-transform:uppercase}.env-value{margin-top:4px;color:#bdd3df;font-size:11px;word-break:break-word}.about-copy{max-width:760px;color:#91a8b7;font-size:12px;line-height:1.7}.socials{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.social{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:9px;color:#9cb4c4;text-decoration:none;font:9px "Cascadia Code",Consolas,monospace}.social:hover{border-color:var(--line-hot);color:white}.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:18px;padding:20px 3px;color:#587386;font:9px "Cascadia Code",Consolas,monospace;border-top:1px solid var(--line)}.footer strong{color:#7794a9;font-weight:500}.page-block.is-hidden{display:none!important}
 .nav-list{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(66,213,255,.28) transparent}.nav-link{min-height:36px;font-size:11px}.nav-icon{display:grid;place-items:center;width:24px;height:22px;border:1px solid rgba(118,174,218,.16);border-radius:7px;font:700 7px "Cascadia Code",Consolas,monospace}.sidebar-spacer{min-height:8px}.panel.wide-panel{grid-column:1/-1}.panel.split-panel{grid-column:span 6}.data-list{display:grid;gap:8px}.data-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px;border:1px solid rgba(109,161,201,.15);border-radius:11px;background:rgba(4,13,23,.3)}.data-main{min-width:0}.data-title{font:650 11px "Cascadia Code",Consolas,monospace;color:#c4dce9;overflow-wrap:anywhere}.data-copy{margin-top:5px;color:#6f899c;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.data-meta{color:#7896aa;font:9px "Cascadia Code",Consolas,monospace;text-align:right}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.button{appearance:none;border:1px solid rgba(92,179,235,.3);border-radius:9px;background:rgba(31,88,126,.14);color:#b9d8e9;min-height:35px;padding:0 13px;font:650 9px "Cascadia Code",Consolas,monospace;cursor:pointer}.button:hover{border-color:var(--line-hot);color:white}.button.primary{background:linear-gradient(135deg,rgba(40,156,226,.24),rgba(103,93,255,.2));color:#e9faff}.button:disabled{opacity:.45;cursor:wait}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:grid;gap:7px;color:#7590a3;font:9px "Cascadia Code",Consolas,monospace}.field select,.field input{width:100%;min-height:40px;border:1px solid var(--line);border-radius:9px;background:#07121f;color:#d8edf7;padding:0 11px}.switch-field{display:flex;align-items:center;gap:9px;min-height:40px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:#07121f}.notice{padding:12px;border:1px solid rgba(66,213,255,.18);border-radius:10px;background:rgba(36,111,154,.08);color:#7f9bad;font-size:10px;line-height:1.55}.output{max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:9px/1.55 "Cascadia Code",Consolas,monospace;color:#87a4b6;background:#050d17;border:1px solid rgba(108,164,205,.12);border-radius:10px;padding:13px}
+.ops-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px}.ops-card{min-height:92px;padding:14px;border:1px solid rgba(105,171,217,.2);border-radius:12px;background:rgba(7,20,34,.76)}.ops-label{font:9px "Cascadia Code",Consolas,monospace;color:#6e8a9e;text-transform:uppercase;letter-spacing:.08em}.ops-value{margin-top:8px;font:700 22px "Cascadia Code",Consolas,monospace;color:#e8f8ff}.ops-note{margin-top:7px;color:#547085;font-size:9px}.server-table{display:grid;border:1px solid rgba(105,171,217,.16);border-radius:12px;overflow:hidden}.server-row{display:grid;grid-template-columns:82px 72px 80px 100px minmax(120px,1fr) 85px 120px;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-bottom:1px solid rgba(105,171,217,.12);font:9px "Cascadia Code",Consolas,monospace}.server-row:last-child{border-bottom:0}.server-row.head{min-height:38px;color:#638095;background:#07111d;text-transform:uppercase}.server-state{color:var(--green)}.server-state.orphan{color:var(--amber)}.server-state.protected{color:#70a9ff}.danger-button{border-color:rgba(255,100,124,.45);color:#ff8296;background:rgba(255,75,103,.06)}.update-banner{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px;border:1px solid rgba(166,120,255,.4);border-radius:13px;background:rgba(94,52,155,.13);margin-bottom:14px}.update-version{font:750 20px "Cascadia Code",Consolas,monospace}.modal-backdrop{position:fixed;z-index:100;inset:0;display:grid;place-items:center;padding:24px;background:rgba(2,7,13,.8);backdrop-filter:blur(8px)}.modal-backdrop[hidden]{display:none}.confirm-modal{width:min(620px,100%);border:1px solid rgba(96,192,244,.48);border-radius:16px;background:#081522;box-shadow:0 34px 120px rgba(0,0,0,.72);padding:22px}.confirm-title{margin:0 0 6px;font:700 18px "Cascadia Code",Consolas,monospace}.confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0}.confirm-cell{padding:11px;border:1px solid var(--line);border-radius:9px;color:#7895a8;font:9px "Cascadia Code",Consolas,monospace}.confirm-cell strong{float:right;color:#cceeff}.confirm-check{display:flex;gap:9px;align-items:flex-start;margin:14px 0;color:#a9c1cf;font-size:11px}.modal-actions{display:flex;justify-content:flex-end;gap:9px}.risk-note{color:#ffcf7a}.protected-note{color:#76a8ff}@media(max-width:1100px){.ops-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.server-row{grid-template-columns:70px 60px 75px minmax(100px,1fr) 95px}.server-row>:nth-child(4),.server-row>:nth-child(6){display:none}}
 @media(max-width:1250px){.metrics{grid-template-columns:repeat(2,1fr)}.panel.workflow-panel{grid-column:span 8}.panel.agents-panel{grid-column:span 4}.panel.timeline-panel{grid-column:span 4}.panel.saver-panel{grid-column:span 4}.panel.health-panel{grid-column:span 4}.panel.git-panel{grid-column:span 4}.panel.environment-panel,.panel.about-panel{grid-column:span 6}}
 @media(max-width:860px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;z-index:50;width:242px;transform:translateX(-105%);transition:transform .25s ease}.sidebar.open{transform:translateX(0)}.main{padding:0 14px 26px}.mobile-menu{display:grid;place-items:center}.top-chip.time{display:none}.metrics{grid-template-columns:1fr 1fr}.panel.workflow-panel,.panel.agents-panel,.panel.timeline-panel,.panel.saver-panel,.panel.health-panel,.panel.git-panel,.panel.environment-panel,.panel.about-panel,.panel.split-panel{grid-column:1/-1}.form-grid{grid-template-columns:1fr}.view-head{align-items:flex-start;flex-direction:column}.identity-strip{justify-content:flex-start}.footer{align-items:flex-start;flex-direction:column}}
 @media(max-width:540px){.topbar{height:62px}.top-actions .top-chip:not(.live){display:none}.metrics{grid-template-columns:1fr}.metric{min-height:106px}.dashboard-grid{display:block}.panel{margin-bottom:12px}.identity-token:last-child{display:none}.main{padding-left:10px;padding-right:10px}.view-head{padding-top:18px}.footer{line-height:1.6}}
@@ -153,7 +179,7 @@ function dashboardHtml(): string {
 <script>
 const safe=(value)=>String(value??'—').replace(/[&<>"']/g,(character)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
 const clamp=(value)=>Math.max(0,Math.min(100,Number(value)||0));
-const routeMeta={dashboard:['Mission control','Real-time agent operations, limits and release safety.'],agents:['Agents radar','Active, idle, blocked and completed AI teammates.'],workflow:['Workflow rail','Task ownership, progress and blockers in one operational view.'],tasks:['Tasks','Every monitored task and its current progress.'],context:['Context usage','Official or estimated context pressure.'],limits:['Usage limits','Current rate, daily and weekly usage provenance.'],models:['AI Credit Saver','Model Need Score, recommendation and estimated economy.'],budget:['AI budget','Daily and weekly pressure with economical recommendations.'],timeline:['Activity timeline','A live, local history of monitored actions.'],files:['Modified files','Git-visible files changed in the current project.'],git:['Git status','Branch, remote, commit and working-tree state.'],tests:['Test monitor','Latest recorded test result and release readiness.'],build:['Build monitor','Latest recorded build result and release readiness.'],environment:['Environment','Host, operating system, tools and detected stacks.'],health:['Project health','Traffic-light status for the complete monitored project.'],security:['Security center','Secrets, attribution and pre-commit safety controls.'],performance:['Performance','Usage pressure, workflow progress and active workload.'],reports:['Reports','Redacted local exports and session history.'],settings:['Settings','Language, level, Safe Guard and local monitor identity.'],about:['About Codinfy','Official product, creator and social attribution.']};
+const routeMeta={dashboard:['Mission control','Real-time agent operations, limits and release safety.'],agents:['Agents radar','Active, idle, blocked and completed AI teammates.'],workflow:['Workflow rail','Task ownership, progress and blockers in one operational view.'],tasks:['Tasks','Every monitored task and its current progress.'],context:['Context usage','Official or estimated context pressure.'],limits:['Usage limits','Current rate, daily and weekly usage provenance.'],models:['AI Credit Saver','Model Need Score, recommendation and estimated economy.'],budget:['AI budget','Daily and weekly pressure with economical recommendations.'],timeline:['Activity timeline','A live, local history of monitored actions.'],files:['Modified files','Git-visible files changed in the current project.'],git:['Git status','Branch, remote, commit and working-tree state.'],tests:['Test monitor','Latest recorded test result and release readiness.'],build:['Build monitor','Latest recorded build result and release readiness.'],environment:['Environment','Host, operating system, tools and detected stacks.'],health:['Project health','Traffic-light status for the complete monitored project.'],security:['Security center','Secrets, attribution and pre-commit safety controls.'],performance:['Performance','Usage pressure, workflow progress and active workload.'],reports:['Reports','Redacted local exports and session history.'],'node-servers':['Node Server Monitor','Live Node.js processes, ports, projects, resources, risk, and protected actions.'],'port-conflicts':['Port Conflict Resolver','Understand every live port owner before resolving a conflict.'],'process-map':['Project Process Map','Group Node processes, ports, frameworks, and relationships by project.'],'resource-guard':['Resource Guard','Live resource pressure with conservative cleanup recommendations.'],'update-center':['MCP Update Center','Compare releases, review preflight checks, back up, and confirm every install.'],'release-notes':['Release Notes','Published changes, breaking changes, migration notes, and known issues.'],'backup-restore':['Backup & Restore','Checksum-protected local configuration backups with confirmed restore.'],doctor:['MCP Health Doctor','Runtime, storage, attribution, integration, and protected-port diagnostics.'],recovery:['Session Recovery','Read-only recovery context from tasks, Git, and local activity.'],notifications:['Notifications','Local alert preferences for updates, ports, orphans, and resources.'],settings:['Settings','Language, level, Safe Guard and local monitor identity.'],about:['About Codinfy','Official product, creator and social attribution.']};
 const aliases={'codinfy':'dashboard','codinfy-agent-monitor':'dashboard'};
 const metricMeta={context:['Context used','◫','#42d5ff'],rate:['Current rate','⌁','#a678ff'],daily:['Daily limit','▣','#38e6c0'],weekly:['Weekly limit','▦','#c489ff']};
 function metricCards(metrics){return Object.entries(metrics).map(([key,metric])=>{const meta=metricMeta[key]||[key,'◫','#42d5ff'];const value=clamp(metric.value);return '<article class="metric" style="--metric-color:'+meta[2]+'"><div class="metric-head"><div class="metric-name"><span class="metric-symbol">'+meta[1]+'</span>'+safe(meta[0])+'</div><div class="metric-value">'+Math.round(value)+'%</div></div><div class="meter"><div class="meter-fill" style="width:'+value+'%"></div></div><div class="metric-foot"><span>'+safe(metric.source==='official'?'Official source':'Estimate mode')+'</span><span class="source">'+safe(metric.updatedAt?new Date(metric.updatedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'live')+'</span></div></article>'}).join('')}
@@ -178,15 +204,42 @@ const extraPanels='<section id="taskPanel" class="panel wide-panel page-block" d
 '<section id="dependenciesPanel" class="panel wide-panel page-block" data-pages="environment"><div class="panel-head"><h2 class="panel-title"><b>DP</b> Dependency adapter</h2><span class="panel-meta">Read-only inspection</span></div><div class="panel-body"><div class="data-list" id="dependencyRows"></div></div></section>'+
 '<section id="reportsPanel" class="panel split-panel page-block" data-pages="reports"><div class="panel-head"><h2 class="panel-title"><b>RP</b> Redacted reports</h2><span class="panel-meta">Local exports</span></div><div class="panel-body"><div class="toolbar"><button class="button" data-report="md">Export MD</button><button class="button" data-report="json">Export JSON</button><button class="button" data-report="html">Export HTML</button></div><div class="data-list" id="reportRows"></div></div></section>'+
 '<section id="historyPanel" class="panel split-panel page-block" data-pages="reports"><div class="panel-head"><h2 class="panel-title"><b>HX</b> Check history</h2><span class="panel-meta">Tests, builds, reports</span></div><div class="panel-body"><div class="data-list" id="historyRows"></div></div></section>'+
-'<section id="settingsPanel" class="panel wide-panel page-block" data-pages="settings"><div class="panel-head"><h2 class="panel-title"><b>ST</b> Monitor settings</h2><span class="panel-meta">Stored locally</span></div><div class="panel-body"><div class="form-grid"><label class="field">Language<select id="settingLanguage"><option value="auto">Auto</option><option value="fr">Francais</option><option value="en">English</option></select></label><label class="field">Experience level<select id="settingLevel"><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="expert">Expert</option></select></label><label class="field">Safe Guard<span class="switch-field"><input id="settingSafeGuard" type="checkbox"> Review before commit</span></label></div><div class="toolbar" style="margin-top:14px"><button class="button primary" id="saveSettings">Save settings</button><span class="panel-meta" id="settingsStatus">Local configuration</span></div></div></section>';
+'<section id="settingsPanel" class="panel wide-panel page-block" data-pages="settings"><div class="panel-head"><h2 class="panel-title"><b>ST</b> Monitor settings</h2><span class="panel-meta">Stored locally</span></div><div class="panel-body"><div class="form-grid"><label class="field">Language<select id="settingLanguage"><option value="auto">Auto</option><option value="fr">Francais</option><option value="en">English</option></select></label><label class="field">Experience level<select id="settingLevel"><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="expert">Expert</option></select></label><label class="field">Safe Guard<span class="switch-field"><input id="settingSafeGuard" type="checkbox"> Review before commit</span></label></div><div class="toolbar" style="margin-top:14px"><button class="button primary" id="saveSettings">Save settings</button><span class="panel-meta" id="settingsStatus">Local configuration</span></div></div></section>'+
+'<section id="nodeServersPanel" class="panel wide-panel page-block" data-pages="node-servers"><div class="panel-head"><h2 class="panel-title"><b>NS</b> Active Node Servers</h2><span class="panel-meta">Live OS inventory</span></div><div class="panel-body"><div class="toolbar"><button class="button primary" id="refreshNode">Refresh inventory</button><span class="panel-meta" id="nodeGenerated">Waiting for live scan</span></div><div class="ops-summary" id="nodeSummary"></div><div class="server-table" id="nodeTable"><div class="empty">Scanning local Node servers...</div></div><div class="notice" style="margin-top:12px">Protected and unidentified processes are inspect-only. Stop requires a reviewed identity and explicit confirmation; Force Kill stays locked until graceful stop fails.</div></div></section>'+
+'<section id="portPanel" class="panel wide-panel page-block" data-pages="port-conflicts"><div class="panel-head"><h2 class="panel-title"><b>PC</b> Port Conflict Resolver</h2><span class="panel-meta">Read-only ownership map</span></div><div class="panel-body"><div class="ops-summary" id="portSummary"></div><div class="data-list" id="portRows"></div></div></section>'+
+'<section id="processMapPanel" class="panel wide-panel page-block" data-pages="process-map"><div class="panel-head"><h2 class="panel-title"><b>PM</b> Project Process Map</h2><span class="panel-meta">Live project grouping</span></div><div class="panel-body"><div class="data-list" id="processMapRows"></div></div></section>'+
+'<section id="resourceGuardPanel" class="panel wide-panel page-block" data-pages="resource-guard"><div class="panel-head"><h2 class="panel-title"><b>RG</b> Resource Guard</h2><span class="panel-meta">No automatic cleanup</span></div><div class="panel-body"><div class="ops-summary" id="resourceSummary"></div><div class="data-list" id="resourceRows"></div></div></section>'+
+'<section id="updateCenterPanel" class="panel wide-panel page-block" data-pages="update-center"><div class="panel-head"><h2 class="panel-title"><b>UP</b> MCP Update Center</h2><span class="panel-meta">Auto-install OFF</span></div><div class="panel-body"><div class="update-banner" id="updateBanner"><div><div class="panel-meta">RELEASE STATUS</div><div class="update-version">Checking GitHub...</div></div><button class="button" id="checkUpdate">Check again</button></div><div class="ops-summary" id="updateSummary"></div><div class="data-list" id="preflightRows"></div><label class="confirm-check"><input type="checkbox" id="confirmUpdate"> I reviewed the version, release notes, backup, and preflight impact.</label><div class="toolbar"><button class="button" id="createUpdateBackup">Create backup</button><button class="button primary" id="installUpdate" disabled>Install confirmed update</button><span class="panel-meta" id="updateActionStatus">Confirmation required</span></div></div></section>'+
+'<section id="releaseNotesPanel" class="panel wide-panel page-block" data-pages="release-notes"><div class="panel-head"><h2 class="panel-title"><b>RN</b> Release Notes Viewer</h2><span class="panel-meta" id="releaseVersion">Published release</span></div><div class="panel-body"><pre class="output" id="releaseNotes">Loading release notes...</pre><div class="data-list" id="breakingRows" style="margin-top:12px"></div></div></section>'+
+'<section id="backupPanel" class="panel wide-panel page-block" data-pages="backup-restore"><div class="panel-head"><h2 class="panel-title"><b>BR</b> Backup &amp; Restore</h2><span class="panel-meta">Checksum protected</span></div><div class="panel-body"><div class="toolbar"><button class="button primary" id="createBackup">Create configuration backup</button><span class="panel-meta" id="backupStatus">Local storage only</span></div><div class="data-list" id="backupRows"></div></div></section>'+
+'<section id="doctorPanel" class="panel wide-panel page-block" data-pages="doctor"><div class="panel-head"><h2 class="panel-title"><b>DR</b> MCP Health Doctor</h2><span class="panel-meta" id="doctorStatus">Diagnosing</span></div><div class="panel-body"><div class="data-list" id="doctorRows"></div></div></section>'+
+'<section id="recoveryPanel" class="panel wide-panel page-block" data-pages="recovery"><div class="panel-head"><h2 class="panel-title"><b>RC</b> Session Recovery</h2><span class="panel-meta">Read-only brief</span></div><div class="panel-body"><div class="data-list" id="recoveryRows"></div></div></section>'+
+'<section id="notificationsPanel" class="panel wide-panel page-block" data-pages="notifications"><div class="panel-head"><h2 class="panel-title"><b>NT</b> Notifications</h2><span class="panel-meta">No external message sent</span></div><div class="panel-body"><div class="data-list" id="notificationRows"></div><div class="toolbar" style="margin-top:14px"><button class="button primary" id="saveNotifications">Save local preferences</button><span class="panel-meta" id="notificationStatus">Stored locally</span></div></div></section>'+
+'<div class="modal-backdrop" id="nodeConfirmModal" hidden><section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="nodeConfirmTitle"><h2 class="confirm-title" id="nodeConfirmTitle">Stop Node Server?</h2><div class="panel-meta">Review the live process identity before any action.</div><div class="confirm-grid" id="confirmProcessGrid"></div><div class="notice"><strong>Safety:</strong> Codinfy requests a non-forceful stop first. Force Kill remains unavailable unless the process is still running and you explicitly confirm again.</div><label class="confirm-check"><input type="checkbox" id="confirmProcessIdentity"><span id="confirmProcessLabel">I reviewed the process identity and impact.</span></label><div class="modal-actions"><button class="button" id="cancelProcessStop">Cancel</button><button class="button primary" id="confirmProcessStop" disabled>Stop Gracefully</button><button class="button danger-button" id="forceProcessKill" disabled title="Available only after a failed graceful stop">Force Kill locked</button></div><div class="panel-meta" id="processActionStatus" style="margin-top:12px"></div></section></div>';
 document.querySelector('.dashboard-grid').insertAdjacentHTML('beforeend',extraPanels);
 document.querySelector('.socials').insertAdjacentHTML('beforeend','<a class="social" href="https://facebook.com/bakalagoin">f @bakalagoin</a><a class="social" href="https://instagram.com/bakalagoin">IG @bakalagoin</a><a class="social" href="https://linkedin.com/in/bakala-goin">in bakala-goin</a>');
 let lastSnapshot=null;
 let activeLanguage='en';
 const routeMetaFr={dashboard:['Centre de mission','Opérations des agents, limites et sécurité de publication en temps réel.'],agents:['Radar des agents','Agents actifs, en veille, bloqués et terminés.'],workflow:['Workflow','Responsabilités, progression et blocages en une vue.'],tasks:['Tâches','Toutes les tâches surveillées et leur progression.'],context:['Contexte utilisé','Pression de contexte officielle ou estimée.'],limits:["Limites d'utilisation",'Débit actuel et limites journalières et hebdomadaires.'],models:['Smart Model Router','Score de besoin, recommandation et économie estimée.'],budget:['AI Credit Saver','Économisez tokens et crédits sans changement automatique.'],timeline:['Chronologie','Historique local et temps réel des actions.'],files:['Fichiers modifiés','Fichiers visibles par Git dans le projet courant.'],git:['État Git','Branche, remote, commit et arbre de travail.'],tests:['Tests','Dernier résultat et exécution locale explicite.'],build:['Build','Dernier résultat et exécution locale explicite.'],environment:['Environnement','Hôte, système, outils et stacks détectées.'],health:['Santé du projet','État complet avant commit.'],security:['Centre de sécurité','Secrets, attribution et Safe Guard.'],performance:['Performance','Observer, usage, workflow et charge active.'],reports:['Rapports','Exports locaux expurgés et historique.'],settings:['Réglages','Langue, niveau et Safe Guard.'],about:['À propos de Codinfy','Produit, créateur et réseaux officiels.']};
 const navLabelsFr={dashboard:'Centre de mission',agents:'Radar des agents',workflow:'Workflow',tasks:'Tâches',context:'Contexte',limits:'Limites',models:'Smart Model Router',budget:'AI Credit Saver',timeline:'Chronologie',files:'Fichiers modifiés',git:'État Git',tests:'Tests',build:'Build',environment:'Environnement',health:'Santé publication',security:'Sécurité',performance:'Codix Observer',reports:'Rapports',settings:'Réglages',about:'À propos de Codinfy'};
-const dedicatedPanels={tasks:['taskPanel'],files:['filesPanel'],tests:['checksPanel'],build:['checksPanel'],security:['securityPanel'],performance:['observerPanel','performancePanel'],reports:['reportsPanel','historyPanel'],settings:['settingsPanel']};
+const dedicatedPanels={tasks:['taskPanel'],files:['filesPanel'],tests:['checksPanel'],build:['checksPanel'],security:['securityPanel'],performance:['observerPanel','performancePanel'],reports:['reportsPanel','historyPanel'],'node-servers':['nodeServersPanel'],'port-conflicts':['portPanel'],'process-map':['processMapPanel'],'resource-guard':['resourceGuardPanel'],'update-center':['updateCenterPanel'],'release-notes':['releaseNotesPanel'],'backup-restore':['backupPanel'],doctor:['doctorPanel'],recovery:['recoveryPanel'],notifications:['notificationsPanel'],settings:['settingsPanel']};
 function dataRows(items,emptyMessage){if(!items.length)return '<div class="empty">'+safe(emptyMessage)+'</div>';return items.map((item)=>'<div class="data-row"><div class="data-main"><div class="data-title">'+safe(item.title)+'</div><div class="data-copy">'+safe(item.copy||'')+'</div></div><div class="data-meta">'+safe(item.meta||'')+'</div></div>').join('')}
+function opsCards(items){return items.map((item)=>'<article class="ops-card"><div class="ops-label">'+safe(item[0])+'</div><div class="ops-value">'+safe(item[1])+'</div><div class="ops-note">'+safe(item[2]||'Live data')+'</div></article>').join('')}
+let lastNodeReport=null;let selectedNodeProcess=null;let forceKillReady=false;let lastUpdateStatus=null;let nodeReloadTimer=null;let resourceReloadTimer=null;let doctorReloadTimer=null;
+function scheduleNodeReload(){if(nodeReloadTimer)return;nodeReloadTimer=setTimeout(async()=>{nodeReloadTimer=null;try{drawNodeReport(await requestJson('/api/node-servers'))}catch{}},2000)}
+function scheduleResourceReload(){if(resourceReloadTimer)return;resourceReloadTimer=setTimeout(async()=>{resourceReloadTimer=null;try{drawResourceGuard(await requestJson('/api/resource-guard'))}catch{}},2000)}
+function scheduleDoctorReload(){if(doctorReloadTimer)return;doctorReloadTimer=setTimeout(async()=>{doctorReloadTimer=null;try{drawDoctor(await requestJson('/api/doctor'))}catch{}},2000)}
+function drawNodeReport(report){lastNodeReport=report;document.getElementById('nodeGenerated').textContent=report.refreshing?'Refreshing inventory...':'Updated '+new Date(report.generatedAt).toLocaleTimeString();document.getElementById('nodeSummary').innerHTML=opsCards([['Active servers',report.totals.active,'Detected live'],['Open ports',report.totals.openPorts,'Node-owned'],['Orphans',report.totals.orphans,'Review only'],['Conflicts',report.totals.conflicts,'Distinct owners'],['Protected',report.totals.protected,'Inspect only']]);const head='<div class="server-row head"><span>Status</span><span>PID</span><span>Port</span><span>Framework</span><span>Project</span><span>Resources</span><span>Action</span></div>';const rows=(report.processes||[]).map((process)=>{const ports=(process.ports||[]).map((port)=>port.port).join(', ')||'none';const resources=Math.round((process.memoryBytes||0)/1048576)+' MB / '+Number(process.cpuPercent||0).toFixed(1)+'%';const action=process.protected?'<span class="protected-note">Protected</span>':'<button class="button danger-button" data-stop-pid="'+safe(process.pid)+'">Stop</button>';return '<div class="server-row"><span class="server-state '+safe(process.status)+'">'+safe(process.status)+'</span><span>'+safe(process.pid)+'</span><span>'+safe(ports)+'</span><span>'+safe(process.framework)+'</span><span title="'+safe(process.workingDirectory||process.command)+'">'+safe(process.project)+'</span><span>'+safe(resources)+'</span><span>'+action+'</span></div>'}).join('');const empty=report.refreshing?'Scanning local Node servers in the background...':'No active Node server detected.';document.getElementById('nodeTable').innerHTML=head+(rows||'<div class="empty">'+empty+'</div>');drawPortReport(report);drawClientProcessMap(report);if(report.refreshing)scheduleNodeReload()}
+function drawPortReport(report){const ports=report.ports||[];document.getElementById('portSummary').innerHTML=opsCards([['Listening ports',new Set(ports.map((item)=>item.port)).size,'Node-owned'],['Public bindings',ports.filter((item)=>item.public).length,'Review exposure'],['Conflicts',(report.conflicts||[]).length,'Multiple PIDs'],['Protected',ports.filter((item)=>item.protected).length,'Action locked']]);const conflicts=(report.conflicts||[]).map((item)=>({title:'Port '+item.port+' conflict',copy:item.message+' PIDs: '+item.pids.join(', '),meta:item.severity}));const bindings=ports.map((item)=>({title:item.address+':'+item.port,copy:'PID '+item.pid+' · '+item.processName+(item.public?' · public binding':' · loopback'),meta:item.protected?'protected':'listening'}));document.getElementById('portRows').innerHTML=dataRows(conflicts.concat(bindings),'No Node-owned listening port detected.')}
+function drawClientProcessMap(report){const groups={};(report.processes||[]).forEach((process)=>{const key=process.project||'Unknown project';groups[key]=groups[key]||{pids:[],ports:[],frameworks:[],protected:false};groups[key].pids.push(process.pid);groups[key].ports.push(...(process.ports||[]).map((port)=>port.port));groups[key].frameworks.push(process.framework);groups[key].protected=groups[key].protected||process.protected});const rows=Object.entries(groups).map(([project,value])=>({title:project,copy:'PIDs '+value.pids.join(', ')+' · Ports '+([...new Set(value.ports)].join(', ')||'none')+' · '+[...new Set(value.frameworks)].join(', '),meta:value.protected?'protected':'live'}));document.getElementById('processMapRows').innerHTML=dataRows(rows,'No project process map is available.')}
+function drawResourceGuard(report){document.getElementById('resourceSummary').innerHTML=opsCards([['System status',report.refreshing?'scanning':report.status,'Live thresholds'],['Memory used',report.system.memoryUsedPercent+'%','System RAM'],['Node memory',Math.round(report.node.memoryBytes/1048576)+' MB','All detected servers'],['Node CPU',report.node.cpuPercent+'%','Sampled usage'],['High risk',report.node.highRiskPids.length,'Inspect first']]);document.getElementById('resourceRows').innerHTML=dataRows((report.recommendations||[]).map((message)=>({title:'Recommendation',copy:message,meta:'no automatic action'})),report.refreshing?'Refreshing resource inventory in the background...':'Resources are healthy.');if(report.refreshing)scheduleResourceReload()}
+function drawUpdateStatus(status){lastUpdateStatus=status;const latest=status.latestVersion||'unavailable';document.getElementById('updateBanner').querySelector('.update-version').textContent=status.updateAvailable?'Update available: v'+latest:'Version v'+status.currentVersion+' is current';document.getElementById('updateSummary').innerHTML=opsCards([['Current','v'+status.currentVersion,'Installed'],['Latest',status.latestVersion?'v'+status.latestVersion:'—',status.updateAvailable?'Available':'Published'],['Channel',status.channel,'Configured'],['Install method',status.installMethod,'Detected'],['Auto-install','OFF','Confirmation required']]);document.getElementById('releaseVersion').textContent=status.release?'v'+status.release.version:'Release unavailable';document.getElementById('releaseNotes').textContent=status.release?.notes||status.error||'No release notes available.';document.getElementById('breakingRows').innerHTML=dataRows((status.release?.breakingChanges||[]).map((message)=>({title:'Breaking change',copy:message,meta:'review'})),'No breaking change declared.');document.getElementById('installUpdate').textContent=status.updateAvailable?'Install v'+latest:'No update available';document.getElementById('confirmUpdate').disabled=!status.updateAvailable;document.getElementById('installUpdate').disabled=true}
+function drawPreflight(preflight){document.getElementById('preflightRows').innerHTML=dataRows((preflight.checks||[]).map((check)=>({title:check.id,copy:check.message,meta:check.status})),'Preflight has not run.')}
+function drawBackups(backups){if(!(backups||[]).length){document.getElementById('backupRows').innerHTML='<div class="empty">No configuration backup yet.</div>';return}document.getElementById('backupRows').innerHTML=backups.map((backup)=>'<div class="data-row"><div class="data-main"><div class="data-title">'+safe(backup.file)+'</div><div class="data-copy">'+safe(new Date(backup.createdAt).toLocaleString()+' · '+backup.projectName+' · v'+backup.monitorVersion)+'</div></div><div style="display:flex;align-items:center;gap:8px"><span class="data-meta">'+safe(backup.valid?'verified':'invalid')+'</span><button class="button" data-restore-path="'+safe(backup.path)+'" '+(backup.valid?'':'disabled')+'>Restore</button></div></div>').join('')}
+function drawDoctor(report){document.getElementById('doctorStatus').textContent=report.refreshing?'scanning':report.status;document.getElementById('doctorRows').innerHTML=dataRows((report.checks||[]).map((check)=>({title:check.label,copy:check.message+(check.remediation?' · '+check.remediation:''),meta:check.status})),report.refreshing?'Running process diagnostics in the background...':'Doctor data unavailable.');if(report.refreshing)scheduleDoctorReload()}
+function drawRecovery(report){const items=[{title:'Session',copy:report.session+' · '+report.project,meta:'local'},{title:'Latest action',copy:report.latestAction,meta:'read-only'},{title:'Modified files',copy:(report.modifiedFiles||[]).join(', ')||'None',meta:(report.modifiedFiles||[]).length},{title:'Active tasks',copy:(report.activeTasks||[]).map((task)=>task.title).join(', ')||'None',meta:(report.activeTasks||[]).length},{title:'Blockers',copy:(report.blockers||[]).map((task)=>task.title).join(', ')||'None',meta:(report.blockers||[]).length}];document.getElementById('recoveryRows').innerHTML=dataRows(items,'No recovery data available.')}
+function drawNotifications(settings){document.getElementById('notificationRows').innerHTML=Object.entries(settings||{}).map(([key,value])=>'<label class="data-row"><div class="data-main"><div class="data-title">'+safe(key.replace(/([A-Z])/g,' $1'))+'</div><div class="data-copy">Local preference only; no external message is sent.</div></div><input type="checkbox" data-notification="'+safe(key)+'" '+(value?'checked':'')+'></label>').join('')||'<div class="empty">No notification preference.</div>'}
+function openProcessConfirmation(pid){selectedNodeProcess=(lastNodeReport?.processes||[]).find((process)=>process.pid===Number(pid));if(!selectedNodeProcess||selectedNodeProcess.protected)return;forceKillReady=false;document.getElementById('confirmProcessGrid').innerHTML=[['PID',selectedNodeProcess.pid],['Project',selectedNodeProcess.project],['Port',(selectedNodeProcess.ports||[]).map((port)=>port.port).join(', ')||'none'],['Framework',selectedNodeProcess.framework],['Status',selectedNodeProcess.status],['Risk',selectedNodeProcess.risk]].map((item)=>'<div class="confirm-cell">'+safe(item[0])+'<strong>'+safe(item[1])+'</strong></div>').join('');document.getElementById('confirmProcessIdentity').checked=false;document.getElementById('confirmProcessLabel').textContent='I reviewed the process identity and impact.';document.getElementById('confirmProcessStop').disabled=true;document.getElementById('forceProcessKill').disabled=true;document.getElementById('forceProcessKill').textContent='Force Kill locked';document.getElementById('processActionStatus').textContent='No action has been applied.';document.getElementById('nodeConfirmModal').hidden=false}
 function drawSnapshot(snapshot){lastSnapshot=snapshot;document.getElementById('projectToken').textContent=(activeLanguage==='fr'?'Projet: ':'Project: ')+snapshot.project;document.getElementById('sessionToken').textContent='Session: '+snapshot.session;document.getElementById('toolToken').textContent='Tool: '+snapshot.tool;document.getElementById('metrics').innerHTML=metricCards(snapshot.metrics);document.getElementById('workflow').innerHTML=workflowRows(snapshot.tasks);document.getElementById('workflowMeta').textContent=snapshot.workflowProgress+'% complete';document.getElementById('agents').innerHTML=agentRows(snapshot.agents);document.getElementById('agentMeta').textContent=snapshot.agents.length+' agents';document.getElementById('timeline').innerHTML=timelineRows(snapshot.timeline);document.getElementById('advice').innerHTML=adviceCard(snapshot.advice);document.getElementById('git').innerHTML=gitCard(snapshot.git);document.getElementById('taskRows').innerHTML=dataRows(snapshot.tasks.map((task)=>({title:task.title,copy:'Progress '+task.progress+'%'+(task.agentId?' - '+task.agentId:''),meta:task.status})),activeLanguage==='fr'?'Aucune tache surveillee.':'No monitored task.');document.getElementById('taskMeta').textContent=snapshot.tasks.length+' tasks';document.getElementById('fileRows').innerHTML=dataRows((snapshot.git.files||[]).map((file)=>({title:file,copy:'Git working tree',meta:'modified'})),activeLanguage==='fr'?'Aucun fichier modifie.':'No modified file.');const perf=[['Context',snapshot.metrics.context.value+'%'],['Current rate',snapshot.metrics.rate.value+'%'],['Workflow',snapshot.workflowProgress+'%'],['Active agents',snapshot.agents.filter((agent)=>!['idle','done'].includes(agent.status)).length],['Errors',snapshot.errors],['Blockers',snapshot.blockers]];document.getElementById('performanceRows').innerHTML=perf.map((item)=>'<div class="env-item"><div class="env-label">'+safe(item[0])+'</div><div class="env-value">'+safe(item[1])+'</div></div>').join('')}
 function drawChecks(payload){drawHealth(payload.review);const rows=[['Tests',payload.review.tests,payload.tests?.createdAt],['Build',payload.review.build,payload.build?.createdAt],['Public ready',payload.review.ready?'ready':'blocked','pre-commit review']];document.getElementById('checkRows').innerHTML=dataRows(rows.map((row)=>({title:row[0],copy:row[2]?String(row[2]):'No recorded run',meta:row[1]})),'No check recorded.');const missing=Object.entries(payload.review.attributionMissing||{}).flatMap(([file,values])=>values.map((value)=>file+': '+value));const security=[{title:'Secret scanner',copy:payload.review.secretFindings.length?payload.review.secretFindings.length+' redacted finding(s)':'No secret finding',meta:payload.review.secretFindings.length?'review':'clear'},{title:'Attribution',copy:missing.length?missing.join(' | '):'Mandatory identity present',meta:missing.length?'review':'clear'},{title:'Sensitive files',copy:(payload.review.sensitiveFiles||[]).join(', ')||'No sensitive changed path',meta:(payload.review.sensitiveFiles||[]).length}];document.getElementById('securityRows').innerHTML=dataRows(security,'Security review unavailable.')}
 function drawObserver(report){const blockers=(report.blockers||[]).map((blocker)=>({title:blocker.kind,copy:blocker.message,meta:blocker.severity}));const recommendations=(report.recommendations||[]).map((message)=>({title:'Recommendation',copy:message,meta:'advice'}));document.getElementById('observerRows').innerHTML=dataRows(blockers.concat(recommendations),'No blocker detected.')}
@@ -195,21 +248,105 @@ function drawReports(reports){document.getElementById('reportRows').innerHTML=da
 function drawHistory(events){document.getElementById('historyRows').innerHTML=dataRows(events.map((event)=>({title:event.type,copy:event.message,meta:new Date(event.createdAt).toLocaleTimeString()})),'No check history yet.')}
 function drawSettings(settings){document.getElementById('settingLanguage').value=settings.language;document.getElementById('settingLevel').value=settings.level;document.getElementById('settingSafeGuard').checked=settings.safeGuard;activeLanguage=settings.language==='auto'?settings.detectedLanguage:settings.language;document.documentElement.lang=activeLanguage;metricMeta.context[0]=activeLanguage==='fr'?'Contexte utilisé':'Context used';metricMeta.rate[0]=activeLanguage==='fr'?'Débit actuel':'Current rate';metricMeta.daily[0]=activeLanguage==='fr'?'Limite journalière':'Daily limit';metricMeta.weekly[0]=activeLanguage==='fr'?'Limite hebdomadaire':'Weekly limit';document.querySelectorAll('.nav-link').forEach((link)=>{if(activeLanguage==='fr'&&navLabelsFr[link.dataset.route])link.querySelector('.nav-label').textContent=navLabelsFr[link.dataset.route]});routePage();if(lastSnapshot)drawSnapshot(lastSnapshot)}
 function drawEnvironmentLive(environment){drawEnvironment(environment)}
-function routePage(){const raw=location.pathname.replace(/^[/]/,'')||'dashboard';const page=aliases[raw]||raw;const meta=(activeLanguage==='fr'?routeMetaFr:routeMeta)[page]||(activeLanguage==='fr'?routeMetaFr.dashboard:routeMeta.dashboard);document.getElementById('pageTitle').textContent=meta[0];document.getElementById('pageCopy').textContent=meta[1];document.querySelectorAll('.page-block').forEach((block)=>{const dedicated=dedicatedPanels[page];const pages=(block.getAttribute('data-pages')||'').split(' ');const visible=dedicated?dedicated.includes(block.id):page==='dashboard'?pages.includes('dashboard'):pages.includes(page);block.classList.toggle('is-hidden',!visible)});document.querySelectorAll('.nav-link').forEach((link)=>link.classList.toggle('active',link.dataset.route===page));document.getElementById('sidebar').classList.remove('open')}
+function routePage(){const raw=location.pathname.replace(/^[/]/,'')||'dashboard';const page=aliases[raw]||raw;const meta=(activeLanguage==='fr'?routeMetaFr[page]:routeMeta[page])||routeMeta[page]||(activeLanguage==='fr'?routeMetaFr.dashboard:routeMeta.dashboard);document.getElementById('pageTitle').textContent=meta[0];document.getElementById('pageCopy').textContent=meta[1];document.querySelectorAll('.page-block').forEach((block)=>{const dedicated=dedicatedPanels[page];const pages=(block.getAttribute('data-pages')||'').split(' ');const visible=dedicated?dedicated.includes(block.id):page==='dashboard'?pages.includes('dashboard'):pages.includes(page);block.classList.toggle('is-hidden',!visible)});document.querySelectorAll('.nav-link').forEach((link)=>link.classList.toggle('active',link.dataset.route===page));document.getElementById('sidebar').classList.remove('open')}
 async function postJson(path,body){const response=await fetch(path,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});if(!response.ok)throw new Error(path+' returned '+response.status);return response.json()}
 async function loadDetails(){const results=await Promise.allSettled([requestJson('/api/checks'),requestJson('/api/environment'),requestJson('/api/observer'),requestJson('/api/dependencies'),requestJson('/api/reports'),requestJson('/api/settings'),requestJson('/api/history')]);if(results[0].status==='fulfilled')drawChecks(results[0].value);if(results[1].status==='fulfilled')drawEnvironmentLive(results[1].value);if(results[2].status==='fulfilled')drawObserver(results[2].value);if(results[3].status==='fulfilled')drawDependencies(results[3].value);if(results[4].status==='fulfilled')drawReports(results[4].value);if(results[5].status==='fulfilled')drawSettings(results[5].value);if(results[6].status==='fulfilled')drawHistory(results[6].value)}
+async function loadAdvanced(){const raw=location.pathname.replace(/^[/]/,'')||'dashboard';const page=aliases[raw]||raw;const nodePages=['node-servers','port-conflicts','process-map'];if(nodePages.includes(page)){try{drawNodeReport(await requestJson('/api/node-servers'))}catch(error){document.getElementById('nodeTable').innerHTML='<div class="empty">'+safe(error.message)+'</div>'}}if(page==='resource-guard'){try{drawResourceGuard(await requestJson('/api/resource-guard'))}catch(error){document.getElementById('resourceRows').innerHTML='<div class="empty">'+safe(error.message)+'</div>'}}if(page==='update-center'||page==='release-notes'){const results=await Promise.allSettled([requestJson('/api/update'),requestJson('/api/update/preflight')]);if(results[0].status==='fulfilled')drawUpdateStatus(results[0].value);if(results[1].status==='fulfilled')drawPreflight(results[1].value)}if(page==='backup-restore')drawBackups(await requestJson('/api/backups'));if(page==='doctor')drawDoctor(await requestJson('/api/doctor'));if(page==='recovery')drawRecovery(await requestJson('/api/recovery'));if(page==='notifications')drawNotifications(await requestJson('/api/notifications'))}
 document.querySelectorAll('[data-report]').forEach((button)=>button.addEventListener('click',async()=>{button.disabled=true;try{const result=await postJson('/api/reports/export',{format:button.dataset.report});drawReports(result.reports);drawHistory(await requestJson('/api/history'))}catch(error){document.getElementById('reportRows').innerHTML='<div class="empty">'+safe(error.message)+'</div>'}finally{button.disabled=false}}));
 document.getElementById('saveSettings').addEventListener('click',async()=>{const button=document.getElementById('saveSettings');button.disabled=true;document.getElementById('settingsStatus').textContent='Saving...';try{const settings=await postJson('/api/settings',{language:document.getElementById('settingLanguage').value,level:document.getElementById('settingLevel').value,safeGuard:document.getElementById('settingSafeGuard').checked});drawSettings(settings);document.getElementById('settingsStatus').textContent='Saved locally'}catch(error){document.getElementById('settingsStatus').textContent=error.message}finally{button.disabled=false}});
+document.getElementById('refreshNode').addEventListener('click',async()=>{const button=document.getElementById('refreshNode');button.disabled=true;try{drawNodeReport(await requestJson('/api/node-servers?refresh=1'))}finally{button.disabled=false}});
+document.getElementById('nodeTable').addEventListener('click',(event)=>{const button=event.target.closest('[data-stop-pid]');if(button)openProcessConfirmation(button.dataset.stopPid)});
+document.getElementById('cancelProcessStop').addEventListener('click',()=>{document.getElementById('nodeConfirmModal').hidden=true;selectedNodeProcess=null;forceKillReady=false});
+document.getElementById('confirmProcessIdentity').addEventListener('change',(event)=>{document.getElementById('confirmProcessStop').disabled=forceKillReady||!event.target.checked;document.getElementById('forceProcessKill').disabled=!forceKillReady||!event.target.checked});
+document.getElementById('confirmProcessStop').addEventListener('click',async()=>{if(!selectedNodeProcess||!document.getElementById('confirmProcessIdentity').checked)return;const button=document.getElementById('confirmProcessStop');button.disabled=true;document.getElementById('processActionStatus').textContent='Requesting graceful stop...';try{const firstPort=selectedNodeProcess.ports?.[0]?.port;const response=await postJson('/api/node-processes/'+selectedNodeProcess.pid+'/stop',{confirm:true,expectedProject:selectedNodeProcess.project,expectedFramework:selectedNodeProcess.framework,expectedPort:firstPort});document.getElementById('processActionStatus').textContent=response.message;if(response.ok){document.getElementById('nodeConfirmModal').hidden=true;drawNodeReport(await requestJson('/api/node-servers'))}else if(response.forceAvailable){forceKillReady=true;document.getElementById('confirmProcessIdentity').checked=false;document.getElementById('confirmProcessLabel').textContent='I re-inspected the running process and explicitly confirm Force Kill impact.';document.getElementById('forceProcessKill').textContent='Force Kill';document.getElementById('forceProcessKill').disabled=true}}catch(error){document.getElementById('processActionStatus').textContent=error.message}});
+document.getElementById('forceProcessKill').addEventListener('click',async()=>{if(!forceKillReady||!selectedNodeProcess||!document.getElementById('confirmProcessIdentity').checked)return;if(!window.confirm('Force Kill PID '+selectedNodeProcess.pid+'? This is the second and final confirmation.'))return;const button=document.getElementById('forceProcessKill');button.disabled=true;document.getElementById('processActionStatus').textContent='Requesting confirmed Force Kill...';try{const firstPort=selectedNodeProcess.ports?.[0]?.port;const response=await postJson('/api/node-processes/'+selectedNodeProcess.pid+'/kill',{confirm:true,gracefulAttempted:true,expectedProject:selectedNodeProcess.project,expectedPort:firstPort});document.getElementById('processActionStatus').textContent=response.message;if(response.ok){document.getElementById('nodeConfirmModal').hidden=true;drawNodeReport(await requestJson('/api/node-servers'))}}catch(error){document.getElementById('processActionStatus').textContent=error.message}});
+document.getElementById('checkUpdate').addEventListener('click',async()=>{const button=document.getElementById('checkUpdate');button.disabled=true;try{drawUpdateStatus(await requestJson('/api/update'));drawPreflight(await requestJson('/api/update/preflight'))}finally{button.disabled=false}});
+document.getElementById('confirmUpdate').addEventListener('change',(event)=>{document.getElementById('installUpdate').disabled=!event.target.checked||!lastUpdateStatus?.updateAvailable});
+document.getElementById('createUpdateBackup').addEventListener('click',async()=>{const backup=await postJson('/api/backups',{});document.getElementById('updateActionStatus').textContent='Backup created: '+backup.file;drawPreflight(await requestJson('/api/update/preflight'))});
+document.getElementById('installUpdate').addEventListener('click',async()=>{if(!lastUpdateStatus?.latestVersion||!document.getElementById('confirmUpdate').checked)return;const button=document.getElementById('installUpdate');button.disabled=true;document.getElementById('updateActionStatus').textContent='Running confirmed preflight and installation...';try{const response=await postJson('/api/update/install',{version:lastUpdateStatus.latestVersion,confirm:true});document.getElementById('updateActionStatus').textContent=response.result?.message||'Installation blocked by preflight.'}catch(error){document.getElementById('updateActionStatus').textContent=error.message}});
+document.getElementById('createBackup').addEventListener('click',async()=>{const button=document.getElementById('createBackup');button.disabled=true;try{const backup=await postJson('/api/backups',{});document.getElementById('backupStatus').textContent='Created '+backup.file;drawBackups(await requestJson('/api/backups'))}finally{button.disabled=false}});
+document.getElementById('backupRows').addEventListener('click',async(event)=>{const button=event.target.closest('[data-restore-path]');if(!button)return;if(!window.confirm('Restore this verified configuration backup? A safety backup will be created first.'))return;button.disabled=true;try{const response=await postJson('/api/backups/restore',{path:button.dataset.restorePath,confirm:true});document.getElementById('backupStatus').textContent=response.message;drawBackups(await requestJson('/api/backups'))}catch(error){document.getElementById('backupStatus').textContent=error.message}finally{button.disabled=false}});
+document.getElementById('saveNotifications').addEventListener('click',async()=>{const values={};document.querySelectorAll('[data-notification]').forEach((input)=>{values[input.dataset.notification]=input.checked});const button=document.getElementById('saveNotifications');button.disabled=true;try{const settings=await postJson('/api/notifications',values);drawNotifications(settings);document.getElementById('notificationStatus').textContent='Saved locally'}catch(error){document.getElementById('notificationStatus').textContent=error.message}finally{button.disabled=false}});
 async function runCheck(kind){const button=document.getElementById(kind==='tests'?'runTests':'runBuild');button.disabled=true;document.getElementById('checkStatus').textContent='Running '+kind+'...';try{const result=await postJson('/api/checks/'+kind,{});document.getElementById('checkOutput').textContent=result.output||'No output.';drawChecks(await requestJson('/api/checks'));document.getElementById('checkStatus').textContent=result.success?'Passed':'Failed'}catch(error){document.getElementById('checkOutput').textContent=error.message;document.getElementById('checkStatus').textContent='Unavailable'}finally{button.disabled=false}}
 document.getElementById('runTests').addEventListener('click',()=>runCheck('tests'));document.getElementById('runBuild').addEventListener('click',()=>runCheck('build'));
 routePage();document.getElementById('menuButton').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));setInterval(()=>{document.getElementById('clock').textContent=new Date().toISOString().slice(11,19)+' UTC'},1000);
-requestJson('/api/status').then((snapshot)=>{drawSnapshot(snapshot);document.getElementById('systemStatus').textContent='All systems connected';return loadDetails()}).catch(()=>{document.getElementById('systemStatus').textContent='Local API unavailable';document.getElementById('connectionLabel').textContent='Offline'});
+requestJson('/api/status').then((snapshot)=>{drawSnapshot(snapshot);document.getElementById('systemStatus').textContent='All systems connected';return Promise.all([loadDetails(),loadAdvanced()])}).catch(()=>{document.getElementById('systemStatus').textContent='Local API unavailable';document.getElementById('connectionLabel').textContent='Offline'});
 let liveSocket;let reconnectAttempt=0;let reconnectTimer;function connectLive(){clearTimeout(reconnectTimer);liveSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');liveSocket.onopen=()=>{reconnectAttempt=0;document.getElementById('connectionLabel').textContent='Live';document.getElementById('systemStatus').textContent='All systems connected'};liveSocket.onmessage=(event)=>{try{drawSnapshot(JSON.parse(event.data))}catch{document.getElementById('systemStatus').textContent='Invalid live update ignored'}};liveSocket.onclose=()=>{document.getElementById('connectionLabel').textContent='Reconnecting';document.getElementById('systemStatus').textContent='Live stream disconnected';const delay=Math.min(10000,1000*Math.pow(2,reconnectAttempt++));reconnectTimer=setTimeout(connectLive,delay)};liveSocket.onerror=()=>{document.getElementById('connectionLabel').textContent='Offline'}}connectLive();
 </script></body></html>`;
 }
 
 export async function createLocalServer(monitor = new AgentMonitor()): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
+  let nodeReportCache: NodeServerReport | undefined;
+  let nodeReportUpdatedAt = 0;
+  let nodeWorker: Worker | undefined;
+  let nodeRefreshPromise: Promise<void> | undefined;
+  const emptyNodeReport = (): NodeServerReport => ({
+    generatedAt: new Date().toISOString(),
+    platform: process.platform,
+    processes: [],
+    ports: [],
+    conflicts: [],
+    totals: { active: 0, protected: 0, orphans: 0, openPorts: 0, conflicts: 0 },
+    warnings: ['Node inventory is warming up in the background.'],
+    estimatedFields: process.platform === 'win32' ? ['workingDirectory', 'cpuPercent'] : [],
+  });
+  const refreshNodeReport = (): Promise<void> => {
+    if (nodeRefreshPromise) return nodeRefreshPromise;
+    nodeRefreshPromise = new Promise<void>((resolve) => {
+      const worker = new Worker(new URL('./node-inventory-worker.js', import.meta.url), {
+        workerData: { projectRoot: monitor.store.projectRoot },
+      });
+      nodeWorker = worker;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (nodeWorker === worker) nodeWorker = undefined;
+        nodeRefreshPromise = undefined;
+        resolve();
+      };
+      worker.once(
+        'message',
+        (result: { ok: boolean; report?: NodeServerReport; error?: string }) => {
+          if (result.ok && result.report) {
+            nodeReportCache = result.report;
+            nodeReportUpdatedAt = Date.now();
+          } else if (!nodeReportCache) {
+            nodeReportCache = {
+              ...emptyNodeReport(),
+              warnings: [`Node inventory failed: ${redactSecrets(result.error ?? 'unknown error')}`],
+            };
+          }
+          finish();
+        },
+      );
+      worker.once('error', (error) => {
+        if (!nodeReportCache) {
+          nodeReportCache = {
+            ...emptyNodeReport(),
+            warnings: [`Node inventory failed: ${redactSecrets(error.message)}`],
+          };
+        }
+        finish();
+      });
+      worker.once('exit', finish);
+      worker.unref();
+    });
+    return nodeRefreshPromise;
+  };
+  const cachedNodeReport = () => {
+    const stale = !nodeReportCache || Date.now() - nodeReportUpdatedAt > 5_000;
+    if (stale) void refreshNodeReport();
+    return {
+      ...(nodeReportCache ?? emptyNodeReport()),
+      refreshing: Boolean(nodeRefreshPromise),
+      cacheAgeMs: nodeReportCache ? Math.max(0, Date.now() - nodeReportUpdatedAt) : null,
+    };
+  };
+  app.addHook('onClose', async () => {
+    if (nodeWorker) await nodeWorker.terminate();
+  });
   let websocketClients = 0;
   await app.register(websocket);
   app.addHook('onRequest', async (request, reply) => {
@@ -294,6 +431,256 @@ export async function createLocalServer(monitor = new AgentMonitor()): Promise<F
       .slice(0, 50);
     return JSON.parse(redactSecrets(JSON.stringify(events)));
   });
+  app.get<{ Querystring: { refresh?: string } }>('/api/node-servers', async (request) => {
+    if (request.query.refresh === '1') nodeReportUpdatedAt = 0;
+    const report = cachedNodeReport();
+    return JSON.parse(redactSecrets(JSON.stringify(report)));
+  });
+  app.get('/api/node-ports', async () => {
+    const report = cachedNodeReport();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          generatedAt: report.generatedAt,
+          refreshing: report.refreshing,
+          ports: report.ports,
+          conflicts: report.conflicts,
+        }),
+      ),
+    );
+  });
+  app.get('/api/node-orphans', async () => {
+    const report = cachedNodeReport();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          generatedAt: report.generatedAt,
+          refreshing: report.refreshing,
+          processes: report.processes.filter((item) => item.status === 'orphan'),
+        }),
+      ),
+    );
+  });
+  app.get<{ Params: { pid: string } }>('/api/node-processes/:pid', async (request, reply) => {
+    const pid = Number(request.params.pid);
+    if (!Number.isInteger(pid) || pid <= 0)
+      return reply.code(400).send({ error: 'A positive process ID is required.' });
+    return JSON.parse(redactSecrets(JSON.stringify(monitor.inspectNodeProcess(pid))));
+  });
+  app.get('/api/node-cleanup', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.nodeCleanupRecommendations()))),
+  );
+  app.get('/api/process-map', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(buildProjectProcessMap(cachedNodeReport())))),
+  );
+  app.get('/api/resource-guard', async () => {
+    const nodeReport = cachedNodeReport();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          ...buildResourceGuard(nodeReport),
+          refreshing: nodeReport.refreshing,
+        }),
+      ),
+    );
+  });
+  app.get('/api/update', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(await monitor.updateStatus()))),
+  );
+  app.get('/api/update/preflight', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.updatePreflight()))),
+  );
+  app.get('/api/update/history', async () =>
+    JSON.parse(
+      redactSecrets(
+        JSON.stringify(
+          monitor.store.timeline(100).filter((event) => /^(update|backup)\./.test(event.type)),
+        ),
+      ),
+    ),
+  );
+  app.get('/api/backups', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.listBackups()))),
+  );
+  app.get('/api/doctor', async () => {
+    const nodeReport = cachedNodeReport();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          ...runHealthDoctor(monitor.store.projectRoot, monitor.store.dataRoot, nodeReport),
+          refreshing: nodeReport.refreshing,
+        }),
+      ),
+    );
+  });
+  app.get('/api/recovery', async () => {
+    const snapshot = monitor.snapshot();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          session: snapshot.session,
+          project: snapshot.project,
+          latestAction: snapshot.latestAction,
+          activeTasks: snapshot.tasks.filter((task) => task.status === 'in_progress'),
+          blockers: snapshot.tasks.filter((task) => task.status === 'blocked'),
+          modifiedFiles: snapshot.git.files,
+          recentActivity: monitor.store.timeline(20),
+          actionApplied: false,
+        }),
+      ),
+    );
+  });
+  app.get('/api/notifications', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.store.getConfig().notifications))),
+  );
+  app.post<{
+    Body: {
+      updates?: boolean;
+      portConflicts?: boolean;
+      orphanProcesses?: boolean;
+      resourceWarnings?: boolean;
+      desktop?: boolean;
+    };
+  }>('/api/notifications', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    const current = monitor.store.getConfig();
+    const keys = [
+      'updates',
+      'portConflicts',
+      'orphanProcesses',
+      'resourceWarnings',
+      'desktop',
+    ] as const;
+    if (
+      keys.some(
+        (key) => request.body?.[key] !== undefined && typeof request.body[key] !== 'boolean',
+      )
+    )
+      return reply.code(400).send({ error: 'Notification preferences must be boolean.' });
+    return monitor.store.updateConfig({
+      notifications: {
+        updates: request.body?.updates ?? current.notifications.updates,
+        portConflicts: request.body?.portConflicts ?? current.notifications.portConflicts,
+        orphanProcesses: request.body?.orphanProcesses ?? current.notifications.orphanProcesses,
+        resourceWarnings: request.body?.resourceWarnings ?? current.notifications.resourceWarnings,
+        desktop: request.body?.desktop ?? current.notifications.desktop,
+      },
+    }).notifications;
+  });
+  app.post<{
+    Params: { pid: string };
+    Body: {
+      confirm?: boolean;
+      expectedProject?: string;
+      expectedFramework?: string;
+      expectedPort?: number;
+    };
+  }>('/api/node-processes/:pid/stop', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    if (request.body?.confirm !== true)
+      return reply.code(400).send({ error: 'Explicit confirmation is required.' });
+    const result = await monitor.controlNodeProcess({
+      pid: Number(request.params.pid),
+      action: 'stop',
+      confirm: true,
+      expected: {
+        project: request.body.expectedProject,
+        framework: request.body.expectedFramework,
+        port: request.body.expectedPort,
+      },
+    });
+    return JSON.parse(redactSecrets(JSON.stringify(result)));
+  });
+  app.post<{
+    Params: { pid: string };
+    Body: {
+      confirm?: boolean;
+      gracefulAttempted?: boolean;
+      expectedProject?: string;
+      expectedPort?: number;
+    };
+  }>('/api/node-processes/:pid/kill', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    if (request.body?.confirm !== true || request.body?.gracefulAttempted !== true)
+      return reply
+        .code(400)
+        .send({ error: 'A failed graceful stop and a second confirmation are required.' });
+    const result = await monitor.controlNodeProcess({
+      pid: Number(request.params.pid),
+      action: 'kill',
+      confirm: true,
+      gracefulAttempted: true,
+      expected: { project: request.body.expectedProject, port: request.body.expectedPort },
+    });
+    return JSON.parse(redactSecrets(JSON.stringify(result)));
+  });
+  app.post<{ Body: { version?: string; confirm?: boolean } }>(
+    '/api/update/install',
+    async (request, reply) => {
+      if (!isAllowedMutationOrigin(request))
+        return reply.code(403).send({ error: 'Same-origin browser request required.' });
+      if (request.body?.confirm !== true || !request.body.version)
+        return reply.code(400).send({ error: 'Version and explicit confirmation are required.' });
+      const backup = monitor.createBackup();
+      const preflight = monitor.updatePreflight();
+      if (!preflight.ready) return { installed: false, backup, preflight };
+      return { backup, preflight, result: monitor.installUpdate(request.body.version, true) };
+    },
+  );
+  app.post<{ Body: { version?: string; confirm?: boolean } }>(
+    '/api/update/rollback',
+    async (request, reply) => {
+      if (!isAllowedMutationOrigin(request))
+        return reply.code(403).send({ error: 'Same-origin browser request required.' });
+      if (request.body?.confirm !== true || !request.body.version)
+        return reply.code(400).send({ error: 'Rollback version and confirmation are required.' });
+      return {
+        rollback: true,
+        backup: monitor.createBackup(),
+        result: monitor.installUpdate(request.body.version, true, true),
+      };
+    },
+  );
+  app.post<{ Body: { channel?: string; checkOnStartup?: boolean; notifyPrerelease?: boolean } }>(
+    '/api/update/settings',
+    async (request, reply) => {
+      if (!isAllowedMutationOrigin(request))
+        return reply.code(403).send({ error: 'Same-origin browser request required.' });
+      const current = monitor.store.getConfig();
+      const channel = request.body?.channel ?? current.updates.channel;
+      if (!['stable', 'prerelease'].includes(channel))
+        return reply.code(400).send({ error: 'Invalid release channel.' });
+      return monitor.store.updateConfig({
+        updates: {
+          ...current.updates,
+          channel: channel as 'stable' | 'prerelease',
+          checkOnStartup: request.body?.checkOnStartup ?? current.updates.checkOnStartup,
+          notifyPrerelease: request.body?.notifyPrerelease ?? current.updates.notifyPrerelease,
+          autoInstall: false,
+        },
+      }).updates;
+    },
+  );
+  app.post('/api/backups', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    return monitor.createBackup();
+  });
+  app.post<{ Body: { path?: string; confirm?: boolean } }>(
+    '/api/backups/restore',
+    async (request, reply) => {
+      if (!isAllowedMutationOrigin(request))
+        return reply.code(403).send({ error: 'Same-origin browser request required.' });
+      if (request.body?.confirm !== true || !request.body.path)
+        return reply
+          .code(400)
+          .send({ error: 'Backup path and explicit confirmation are required.' });
+      return monitor.restoreBackup(request.body.path, true);
+    },
+  );
   app.post<{
     Body: { language?: string; level?: string; safeGuard?: boolean };
   }>('/api/settings', async (request, reply) => {

@@ -23,6 +23,10 @@ describe('local dashboard server', () => {
     expect(dashboard.body).toContain('id="pageTitle"');
     expect(dashboard.body).toContain('id="settingsPanel"');
     expect(dashboard.body).toContain('id="securityPanel"');
+    expect(dashboard.body).toContain('id="nodeServersPanel"');
+    expect(dashboard.body).toContain('id="updateCenterPanel"');
+    expect(dashboard.body).toContain('id="nodeConfirmModal"');
+    expect(dashboard.body).toContain('Force Kill locked');
     expect(dashboard.body).toContain('function connectLive()');
     const codinfy = await app.inject('/codinfy');
     expect(codinfy.statusCode).toBe(200);
@@ -55,6 +59,16 @@ describe('local dashboard server', () => {
       'security',
       'performance',
       'reports',
+      'node-servers',
+      'port-conflicts',
+      'process-map',
+      'resource-guard',
+      'update-center',
+      'release-notes',
+      'backup-restore',
+      'doctor',
+      'recovery',
+      'notifications',
       'settings',
       'about',
     ];
@@ -76,6 +90,18 @@ describe('local dashboard server', () => {
       'history',
     ];
     for (const api of apis) expect((await app.inject(`/api/${api}`)).statusCode).toBe(200);
+    const nodeServers = await app.inject('/api/node-servers');
+    expect(nodeServers.statusCode).toBe(200);
+    expect(nodeServers.json()).toHaveProperty('totals');
+    const updatePreflight = await app.inject('/api/update/preflight');
+    expect(updatePreflight.statusCode).toBe(200);
+    expect(updatePreflight.json()).toHaveProperty('requiresConfirmation', true);
+    const rejectedStop = await app.inject({
+      method: 'POST',
+      url: '/api/node-processes/1/stop',
+      payload: { confirm: true },
+    });
+    expect(rejectedStop.statusCode).toBe(403);
     const rejectedMutation = await app.inject({
       method: 'POST',
       url: '/api/settings',

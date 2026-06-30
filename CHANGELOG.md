@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0 — 2026-06-30
+
+### Added
+
+- Cross-platform Node/Bun/Deno server inventory with live TCP ownership, framework/project inference, CPU, memory, uptime, orphan candidates, conflicts, public exposure, and conservative protection.
+- Confirmed process control with live identity revalidation, protected-process refusal, graceful-first policy, and Force Kill gated behind a failed stop plus a second confirmation.
+- MCP Update Center backed by GitHub releases and SemVer, including changelog, breaking changes, install-method detection, preflight, history, safe settings, confirmed npm-global install, and rollback.
+- Checksum-protected configuration backup/restore, MCP Health Doctor, Project Process Map, Resource Guard, Session Recovery, Auto Cleanup Suggestions, and local notification preferences.
+- Ten live dashboard routes and local JSON APIs for the complete v0.2.0 developer-operations surface.
+- 24 new MCP tools and nested CLI families for `node`, `update`, and `backup`.
+- Complete design system and page specifications under `docs/design/`, with approved Node Monitor, stop confirmation, and Update Center concepts.
+
+### Security
+
+- Update auto-install is structurally disabled.
+- Process command lines are redacted before API, MCP, CLI, timeline, or UI output.
+- Stop, kill, install, rollback, and restore require explicit confirmation; mutation APIs also enforce same-origin browser requests.
+- Unknown Node identities and the Codinfy runtime/dashboard/MCP host family are protected by default.
+
+### Compatibility
+
+- Preserves `/codinfy`, `codinfy-agent-monitor`, all v0.1.4 routes, host adapters, local storage, and mandatory Codinfy attribution.
+- Node.js 22.13+ remains required.
+
 ## 0.1.4 — 2026-06-30
 
 ### Added

@@ -61,6 +61,30 @@ export const TOOL_NAMES = [
   'monitor.switch_model',
   'monitor.get_attribution',
   'monitor.export_report',
+  'monitor.node_servers',
+  'monitor.node_ports',
+  'monitor.node_orphans',
+  'monitor.node_inspect_process',
+  'monitor.node_stop_process',
+  'monitor.node_kill_process',
+  'monitor.node_refresh',
+  'monitor.node_cleanup_recommendations',
+  'monitor.port_conflicts',
+  'monitor.project_process_map',
+  'monitor.resource_guard',
+  'monitor.update_check',
+  'monitor.update_status',
+  'monitor.update_changelog',
+  'monitor.update_install',
+  'monitor.update_rollback',
+  'monitor.update_settings',
+  'monitor.update_history',
+  'monitor.backup_create',
+  'monitor.backup_list',
+  'monitor.backup_restore',
+  'monitor.health_doctor',
+  'monitor.session_recovery',
+  'monitor.notifications',
 ] as const;
 
 function result(value: unknown) {
@@ -71,10 +95,10 @@ function result(value: unknown) {
 
 export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   const server = new McpServer(
-    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.4' },
+    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.2.0' },
     {
       instructions:
-        'Use monitor.status first. Usage metrics may be estimated. Never expose secrets. Model changes require user confirmation. Preserve Codinfy attribution.',
+        'Use monitor.status first. Usage metrics may be estimated. Never expose secrets. Never stop or kill a process, install an update, roll back, or restore a backup without explicit confirmation. Model changes require user confirmation. Preserve Codinfy attribution.',
     },
   );
 
@@ -607,6 +631,251 @@ export function createMcpServer(monitor = new AgentMonitor()): McpServer {
         format: format ?? 'md',
         signature: CODINFY_ATTRIBUTION.signature,
       }),
+  );
+
+  server.registerTool(
+    'monitor.node_servers',
+    {
+      description:
+        'List live Node.js servers with ports, project identity, resources, risk, and protection state.',
+    },
+    async () => result(monitor.nodeServers()),
+  );
+  server.registerTool(
+    'monitor.node_refresh',
+    { description: 'Refresh the read-only live Node server inventory.' },
+    async () => result(monitor.nodeServers()),
+  );
+  server.registerTool(
+    'monitor.node_ports',
+    { description: 'List Node-owned TCP listening ports and detected ownership conflicts.' },
+    async () => result(monitor.nodePorts()),
+  );
+  server.registerTool(
+    'monitor.port_conflicts',
+    { description: 'List live Node-related port conflicts without changing a process.' },
+    async () => result(monitor.nodePorts().conflicts),
+  );
+  server.registerTool(
+    'monitor.node_orphans',
+    { description: 'List conservative orphan Node process candidates. No cleanup is automatic.' },
+    async () => result(monitor.nodeOrphans()),
+  );
+  server.registerTool(
+    'monitor.node_inspect_process',
+    {
+      description: 'Inspect one live Node process by PID without changing it.',
+      inputSchema: { pid: z.number().int().positive() },
+    },
+    async ({ pid }) => result(monitor.inspectNodeProcess(pid)),
+  );
+  server.registerTool(
+    'monitor.node_stop_process',
+    {
+      description:
+        'Request a graceful stop after identity revalidation. Explicit confirmation is mandatory.',
+      inputSchema: {
+        pid: z.number().int().positive(),
+        confirm: z.literal(true),
+        expectedProject: z.string().optional(),
+        expectedFramework: z.string().optional(),
+        expectedPort: z.number().int().min(1).max(65_535).optional(),
+      },
+    },
+    async ({ pid, confirm, expectedProject, expectedFramework, expectedPort }) =>
+      result(
+        await monitor.controlNodeProcess({
+          pid,
+          action: 'stop',
+          confirm,
+          expected: {
+            project: expectedProject,
+            framework: expectedFramework,
+            port: expectedPort,
+          },
+        }),
+      ),
+  );
+  server.registerTool(
+    'monitor.node_kill_process',
+    {
+      description:
+        'Force Kill only after a failed graceful stop, re-inspection, and a second confirmation.',
+      inputSchema: {
+        pid: z.number().int().positive(),
+        confirm: z.literal(true),
+        gracefulAttempted: z.literal(true),
+        expectedProject: z.string().optional(),
+        expectedPort: z.number().int().min(1).max(65_535).optional(),
+      },
+    },
+    async ({ pid, confirm, gracefulAttempted, expectedProject, expectedPort }) =>
+      result(
+        await monitor.controlNodeProcess({
+          pid,
+          action: 'kill',
+          confirm,
+          gracefulAttempted,
+          expected: { project: expectedProject, port: expectedPort },
+        }),
+      ),
+  );
+  server.registerTool(
+    'monitor.node_cleanup_recommendations',
+    {
+      description:
+        'Return read-only cleanup suggestions. Every suggested process action requires confirmation.',
+    },
+    async () => result(monitor.nodeCleanupRecommendations()),
+  );
+  server.registerTool(
+    'monitor.project_process_map',
+    {
+      description:
+        'Group live Node processes, ports, frameworks, and parent-child links by project.',
+    },
+    async () => result(monitor.projectProcessMap()),
+  );
+  server.registerTool(
+    'monitor.resource_guard',
+    {
+      description:
+        'Show live system and Node resource pressure with non-destructive recommendations.',
+    },
+    async () => result(monitor.resourceGuard()),
+  );
+
+  server.registerTool(
+    'monitor.update_check',
+    { description: 'Check the official public GitHub repository for the latest release.' },
+    async () => result(await monitor.updateStatus()),
+  );
+  server.registerTool(
+    'monitor.update_status',
+    {
+      description: 'Compare the installed version with the latest published release using SemVer.',
+    },
+    async () => result(await monitor.updateStatus()),
+  );
+  server.registerTool(
+    'monitor.update_changelog',
+    { description: 'Return release notes and detected breaking changes from GitHub.' },
+    async () => {
+      const status = await monitor.updateStatus();
+      return result(status.release ?? { error: status.error ?? 'No release notes available.' });
+    },
+  );
+  server.registerTool(
+    'monitor.update_install',
+    {
+      description:
+        'Install a specific npm-global release. Creates a backup and requires explicit confirmation.',
+      inputSchema: { version: z.string().min(1), confirm: z.literal(true) },
+    },
+    async ({ version, confirm }) => {
+      const backup = monitor.createBackup();
+      const preflight = monitor.updatePreflight();
+      if (!preflight.ready) return result({ installed: false, backup, preflight });
+      return result({ backup, preflight, result: monitor.installUpdate(version, confirm) });
+    },
+  );
+  server.registerTool(
+    'monitor.update_rollback',
+    {
+      description:
+        'Reinstall a confirmed previous npm-global version after creating a safety backup.',
+      inputSchema: { version: z.string().min(1), confirm: z.literal(true) },
+    },
+    async ({ version, confirm }) =>
+      result({
+        rollback: true,
+        backup: monitor.createBackup(),
+        result: monitor.installUpdate(version, confirm, true),
+      }),
+  );
+  server.registerTool(
+    'monitor.update_settings',
+    {
+      description: 'Read or change safe update preferences. autoInstall can only remain false.',
+      inputSchema: {
+        channel: z.enum(['stable', 'prerelease']).optional(),
+        checkOnStartup: z.boolean().optional(),
+        checkIntervalHours: z.number().int().min(1).max(168).optional(),
+        notifyPrerelease: z.boolean().optional(),
+        autoInstall: z.literal(false).optional(),
+      },
+    },
+    async (input) => {
+      const config = monitor.store.getConfig();
+      const updates = monitor.store.updateConfig({
+        updates: {
+          ...config.updates,
+          channel: input.channel ?? config.updates.channel,
+          checkOnStartup: input.checkOnStartup ?? config.updates.checkOnStartup,
+          checkIntervalHours: input.checkIntervalHours ?? config.updates.checkIntervalHours,
+          notifyPrerelease: input.notifyPrerelease ?? config.updates.notifyPrerelease,
+          autoInstall: false,
+        },
+      }).updates;
+      return result(updates);
+    },
+  );
+  server.registerTool(
+    'monitor.update_history',
+    { description: 'Show local update and backup activity.' },
+    async () =>
+      result(monitor.store.timeline(100).filter((event) => /^(update|backup)\./.test(event.type))),
+  );
+  server.registerTool(
+    'monitor.backup_create',
+    { description: 'Create a local checksum-protected configuration backup.' },
+    async () => result(monitor.createBackup()),
+  );
+  server.registerTool(
+    'monitor.backup_list',
+    { description: 'List local configuration backups and checksum validity.' },
+    async () => result(monitor.listBackups()),
+  );
+  server.registerTool(
+    'monitor.backup_restore',
+    {
+      description: 'Restore a checksum-verified local backup. Explicit confirmation is mandatory.',
+      inputSchema: { path: z.string().min(1), confirm: z.literal(true) },
+    },
+    async ({ path, confirm }) => result(monitor.restoreBackup(path, confirm)),
+  );
+  server.registerTool(
+    'monitor.health_doctor',
+    {
+      description:
+        'Diagnose runtime, storage, attribution, Node inventory, and dashboard port health.',
+    },
+    async () => result(monitor.healthDoctor()),
+  );
+  server.registerTool(
+    'monitor.session_recovery',
+    {
+      description:
+        'Build a read-only recovery brief from local session, Git, tasks, and timeline state.',
+    },
+    async () => {
+      const snapshot = monitor.snapshot();
+      return result({
+        session: snapshot.session,
+        project: snapshot.project,
+        latestAction: snapshot.latestAction,
+        activeTasks: snapshot.tasks.filter((task) => task.status === 'in_progress'),
+        blockers: snapshot.tasks.filter((task) => task.status === 'blocked'),
+        modifiedFiles: snapshot.git.files,
+        recentActivity: monitor.store.timeline(20),
+        actionApplied: false,
+      });
+    },
+  );
+  server.registerTool(
+    'monitor.notifications',
+    { description: 'Read local notification preferences. No external message is sent.' },
+    async () => result(monitor.store.getConfig().notifications),
   );
 
   return server;

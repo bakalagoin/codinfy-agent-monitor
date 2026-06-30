@@ -1,6 +1,6 @@
 {
   "name": "@codinfy/agent-monitor-tui",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Ink terminal dashboard for Codinfy Agent Monitor",
   "type": "module",
   "main": "dist/index.js",

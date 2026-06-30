@@ -10,7 +10,7 @@ Copy `templates/codex/.codex`. The TOML entry starts `codinfy-agent-monitor mcp`
 
 ## Cursor
 
-Copy `templates/cursor/.cursor`. It contains `mcp.json`, a rule, and a compact skill. Cursor monitoring is MCP-driven; v0.1.4 does not claim a native automatic hook that is not covered by the verified host integration.
+Copy `templates/cursor/.cursor`. It contains `mcp.json`, a rule, and a compact skill. Cursor monitoring is MCP-driven; v0.2.0 does not claim a native automatic hook that is not covered by the verified host integration.
 
 ## Windsurf
 

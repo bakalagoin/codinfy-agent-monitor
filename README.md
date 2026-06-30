@@ -16,8 +16,8 @@ Observe agents, context, limits, workflows, Git, security and model economy from
   <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bakalagoin/codinfy-agent-monitor/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bakalagoin/codinfy-agent-monitor/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.4-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
-[![MCP](https://img.shields.io/badge/MCP-42_tools-20C997?style=for-the-badge&logo=probot&logoColor=white)](#-mcp-tool-api)
+[![Version](https://img.shields.io/badge/version-0.2.0-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
+[![MCP](https://img.shields.io/badge/MCP-66_tools-20C997?style=for-the-badge&logo=probot&logoColor=white)](#-mcp-tool-api)
 [![Node](https://img.shields.io/badge/Node.js-22.13+-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](#-requirements)
 [![License](https://img.shields.io/badge/license-Codinfy_Attribution-5D5FEF?style=for-the-badge&logo=readthedocs&logoColor=white)](./LICENSE)
 
@@ -28,7 +28,7 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 
   <br>
 
-[**Demo**](#-live-dashboard-demo) · [**v0.1.4**](#-whats-new-in-v014) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
+[**Demo**](#-live-dashboard-demo) · [**v0.2.0**](#-whats-new-in-v020) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
 </div>
 
 <br>
@@ -57,18 +57,18 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 
 <p align="center"><sub>Captured from the working local dashboard with live events, project health and release-safety views.</sub></p>
 
-## ✨ What's new in v0.1.4
+## ✨ What's new in v0.2.0
 
-| Area                          | v0.1.4 update                                                                                                                                                        |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Full dashboard wiring**     | All 20 sidebar routes now open a dedicated live view, backed by explicit APIs for tasks, files, checks, security, observer, dependencies, reports and settings       |
-| **Live host adapters**        | Native redacted lifecycle hooks for Claude Code, Codex and Windsurf register host activity as agents and timeline events; Cursor remains available through MCP/rules |
-| **Interactive release tools** | Run tests/builds explicitly, export redacted Markdown/JSON/HTML reports, save language/level/Safe Guard settings and inspect check history from the browser          |
-| **Reliable live stream**      | Exponential WebSocket reconnection, visible connection state and resilient malformed-update handling                                                                 |
-| **International dashboard**   | Automatic or explicit French/English navigation, page descriptions and metric labels                                                                                 |
-| **Security**                  | Same-origin mutation controls, loopback-only service, redacted hook payload policy and trusted external CLI resolution                                               |
+| Area                     | v0.2.0 update                                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Node Server Monitor**  | Cross-platform live inventory for Node/Bun/Deno servers, ports, framework, detected project, CPU, memory, uptime, orphan candidates, conflicts, and protected processes  |
+| **Safe process control** | Live identity revalidation, explicit confirmation before stop, protected-process refusal, and Force Kill locked behind a failed graceful stop plus a second confirmation |
+| **MCP Update Center**    | SemVer comparison with the official GitHub release, release notes, breaking changes, install-method detection, preflight, backup, confirmed npm update, and rollback     |
+| **Developer cockpit**    | Ten new routes: Node servers, ports, process map, resources, updates, release notes, backups, doctor, recovery, and notifications                                        |
+| **Continuity & health**  | Checksum-protected configuration backup/restore, MCP Health Doctor, read-only session recovery, Resource Guard, and local notification settings                          |
+| **Expanded MCP/CLI**     | 66 MCP tools plus nested `node`, `update`, and `backup` command families. Auto-install stays OFF and model switching remains confirmation-only                           |
 
-[Read the complete v0.1.4 changelog](./CHANGELOG.md#014--2026-06-30) · [Read the release notes](./docs/releases/v0.1.4.md)
+[Read the complete v0.2.0 changelog](./CHANGELOG.md#020--2026-06-30) · [Open the design specifications](./docs/design/README.md)
 
 ---
 
@@ -270,6 +270,42 @@ codinfy-agent-monitor doctor
 
 </details>
 
+<details open>
+<summary><strong>Node servers, ports & resources — v0.2.0</strong></summary>
+
+```bash
+codinfy-agent-monitor node servers
+codinfy-agent-monitor node ports
+codinfy-agent-monitor node orphans
+codinfy-agent-monitor node inspect 24132
+codinfy-agent-monitor node cleanup
+codinfy-agent-monitor process-map
+codinfy-agent-monitor resource-guard
+```
+
+Stopping a process requires `node stop <pid> --confirm`. Force Kill additionally requires `--graceful-attempted` and a second confirmation. Protected or unidentified processes remain inspect-only.
+
+</details>
+
+<details>
+<summary><strong>Update Center, backup & recovery — v0.2.0</strong></summary>
+
+```bash
+codinfy-agent-monitor update check
+codinfy-agent-monitor update changelog
+codinfy-agent-monitor update preflight
+codinfy-agent-monitor update settings
+codinfy-agent-monitor backup
+codinfy-agent-monitor backup list
+codinfy-agent-monitor doctor
+codinfy-agent-monitor recovery
+codinfy-agent-monitor notifications
+```
+
+Auto-install is always OFF. `update install`, `update rollback`, and `backup restore` require explicit confirmation and create or validate safety backups.
+
+</details>
+
 ## ⬡ MCP Tool API
 
 Start the local stdio server:
@@ -289,18 +325,22 @@ codinfy-agent-monitor mcp
 }
 ```
 
-| Tool domain       | MCP tools                                                                                                                                                                   |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Status**        | `monitor.status`, `monitor.open_dashboard`, `monitor.get_attribution`                                                                                                       |
-| **Agents**        | `monitor.list_agents`, `monitor.register_agent`, `monitor.update_agent_state`                                                                                               |
-| **Usage**         | `monitor.get_context_usage`, `monitor.get_rate_limit_status`, `monitor.get_daily_usage`, `monitor.get_weekly_usage`                                                         |
-| **Model economy** | `monitor.get_model_advice`, `monitor.get_model_score`, `monitor.get_budget_status`, `monitor.get_economy_plan`                                                              |
-| **Workflow**      | `monitor.create_task`, `monitor.update_task`, `monitor.list_tasks`, `monitor.get_workflow`, `monitor.timeline`                                                              |
-| **Engineering**   | `monitor.git_status`, `monitor.git_diff`, `monitor.test_status`, `monitor.build_status`, `monitor.environment_status`, `monitor.dependency_health`, `monitor.check_command` |
-| **Release**       | `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`                                                                                     |
-| **Guided**        | `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`                                                                             |
-| **Trust**         | `monitor.scan_secrets`, `monitor.review_before_commit`, `monitor.alerts`, `monitor.recommendations`, `monitor.observer`                                                     |
-| **Reports**       | `monitor.export_report`, `monitor.get_cost_estimate`                                                                                                                        |
+| Tool domain        | MCP tools                                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**         | `monitor.status`, `monitor.open_dashboard`, `monitor.get_attribution`                                                                                                                 |
+| **Agents**         | `monitor.list_agents`, `monitor.register_agent`, `monitor.update_agent_state`                                                                                                         |
+| **Usage**          | `monitor.get_context_usage`, `monitor.get_rate_limit_status`, `monitor.get_daily_usage`, `monitor.get_weekly_usage`                                                                   |
+| **Model economy**  | `monitor.get_model_advice`, `monitor.get_model_score`, `monitor.get_budget_status`, `monitor.get_economy_plan`                                                                        |
+| **Workflow**       | `monitor.create_task`, `monitor.update_task`, `monitor.list_tasks`, `monitor.get_workflow`, `monitor.timeline`                                                                        |
+| **Engineering**    | `monitor.git_status`, `monitor.git_diff`, `monitor.test_status`, `monitor.build_status`, `monitor.environment_status`, `monitor.dependency_health`, `monitor.check_command`           |
+| **Release**        | `monitor.commit_message`, `monitor.pr_summary`, `monitor.docs_check`, `monitor.handoff`                                                                                               |
+| **Guided**         | `monitor.simple_report`, `monitor.explain_error`, `monitor.model_rules`, `monitor.switch_model`                                                                                       |
+| **Trust**          | `monitor.scan_secrets`, `monitor.review_before_commit`, `monitor.alerts`, `monitor.recommendations`, `monitor.observer`                                                               |
+| **Reports**        | `monitor.export_report`, `monitor.get_cost_estimate`                                                                                                                                  |
+| **Node runtime**   | `monitor.node_servers`, `monitor.node_ports`, `monitor.node_orphans`, `monitor.node_inspect_process`, `monitor.node_refresh`, `monitor.node_cleanup_recommendations`                  |
+| **Process safety** | `monitor.node_stop_process`, `monitor.node_kill_process`, `monitor.port_conflicts`, `monitor.project_process_map`, `monitor.resource_guard`                                           |
+| **Updates**        | `monitor.update_check`, `monitor.update_status`, `monitor.update_changelog`, `monitor.update_install`, `monitor.update_rollback`, `monitor.update_settings`, `monitor.update_history` |
+| **Continuity**     | `monitor.backup_create`, `monitor.backup_list`, `monitor.backup_restore`, `monitor.health_doctor`, `monitor.session_recovery`, `monitor.notifications`                                |
 
 The integration test launches the built stdio server, connects an MCP client, lists tools and calls `monitor.get_attribution`.
 
@@ -329,7 +369,7 @@ flowchart LR
   end
 
   subgraph Interfaces[Codinfy interfaces]
-    MCP[MCP stdio · 42 tools]
+    MCP[MCP stdio · 66 tools]
     CLI[CLI · /codinfy]
     TUI[Animated Ink TUI]
     WEB[Fastify + WebSocket]
