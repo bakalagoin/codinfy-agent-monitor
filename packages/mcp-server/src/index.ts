@@ -71,7 +71,7 @@ function result(value: unknown) {
 
 export function createMcpServer(monitor = new AgentMonitor()): McpServer {
   const server = new McpServer(
-    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.3' },
+    { name: CODINFY_ATTRIBUTION.mcpName, version: '0.1.4' },
     {
       instructions:
         'Use monitor.status first. Usage metrics may be estimated. Never expose secrets. Model changes require user confirmation. Preserve Codinfy attribution.',

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.4 — 2026-06-30
+
+### Added
+
+- Dedicated live dashboard panels for all 20 routes, including tasks, modified files, tests/build, security, Codix Observer, dependency health, reports, history and local settings.
+- Dashboard APIs for tasks, files, checks, observer, dependencies, reports, settings and command/check history.
+- Explicit browser actions for tests, builds and redacted Markdown/JSON/HTML report exports.
+- Native, payload-free lifecycle hook templates for Claude Code, Codex and Windsurf. Hook events register the host as a live adapter agent and add a redacted timeline event.
+- Automatic or explicit French/English dashboard navigation, descriptions and usage labels.
+
+### Security
+
+- Require a validated same-origin browser request for every dashboard mutation.
+- Keep hook stdin and host payloads out of storage; only allow bounded host and event identifiers.
+- Resolve the global monitor CLI outside the monitored project and preserve safe Windows batch execution.
+
+### Fixed
+
+- Replaced reused placeholder panels with route-specific data views.
+- Added exponential WebSocket reconnection and invalid-update isolation.
+- Activated shipped hook templates through `.claude/settings.json`, `.codex/hooks.json` and `.windsurf/hooks.json`.
+- Completed the Codinfy social identity in the dashboard with Bakala Goin Facebook, Instagram and LinkedIn links.
+
+### Changed
+
+- Bumped all workspace package versions to `0.1.4`.
+
 ## 0.1.3 — 2026-06-29
 
 ### Added

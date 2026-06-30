@@ -62,6 +62,18 @@ describe('Codinfy Agent Monitor core', () => {
     monitor.close();
   });
 
+  it('records host adapter activity as a live agent and redacted timeline event', () => {
+    const monitor = new AgentMonitor(root());
+    monitor.recordAdapterEvent('codex', 'PostToolUse');
+    const agent = monitor.store.getAgent('codex-adapter');
+    expect(agent).toMatchObject({ name: 'Codex', role: 'host-adapter', status: 'running' });
+    expect(monitor.snapshot().tool).toBe('Codex');
+    expect(
+      monitor.snapshot().timeline.some((event) => event.type === 'adapter.codex.posttooluse'),
+    ).toBe(true);
+    monitor.close();
+  });
+
   it('creates tasks and calculates workflow progress', () => {
     const monitor = new AgentMonitor(root());
     const first = monitor.createTask({ title: 'Core', status: 'in_progress', progress: 50 });

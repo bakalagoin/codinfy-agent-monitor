@@ -16,7 +16,7 @@ Observe agents, context, limits, workflows, Git, security and model economy from
   <br>
 
 [![CI](https://img.shields.io/github/actions/workflow/status/bakalagoin/codinfy-agent-monitor/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/bakalagoin/codinfy-agent-monitor/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.1.3-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.4-7C6CFF?style=for-the-badge&logo=semanticrelease&logoColor=white)](./CHANGELOG.md)
 [![MCP](https://img.shields.io/badge/MCP-42_tools-20C997?style=for-the-badge&logo=probot&logoColor=white)](#-mcp-tool-api)
 [![Node](https://img.shields.io/badge/Node.js-22.13+-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](#-requirements)
 [![License](https://img.shields.io/badge/license-Codinfy_Attribution-5D5FEF?style=for-the-badge&logo=readthedocs&logoColor=white)](./LICENSE)
@@ -28,7 +28,7 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 
   <br>
 
-[**Demo**](#-live-dashboard-demo) · [**v0.1.3**](#-whats-new-in-v013) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
+[**Demo**](#-live-dashboard-demo) · [**v0.1.4**](#-whats-new-in-v014) · [**Quick start**](#-launch-in-60-seconds) · [**Command center**](#-command-center) · [**MCP API**](#-mcp-tool-api) · [**Security**](./SECURITY.md) · [**Contributing**](./CONTRIBUTING.md) · [**License**](./LICENSE)
 </div>
 
 <br>
@@ -57,18 +57,18 @@ Observe agents, context, limits, workflows, Git, security and model economy from
 
 <p align="center"><sub>Captured from the working local dashboard with live events, project health and release-safety views.</sub></p>
 
-## ✨ What's new in v0.1.3
+## ✨ What's new in v0.1.4
 
-| Area                       | v0.1.3 update                                                                                                                                              |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Glass dashboard**        | Immersive responsive mission control, animated meters, workflow rail, agent radar, live timeline and official routes `/codinfy` + `/codinfy-agent-monitor` |
-| **Codix Observer**         | Detects blockers, repeated failures, rate-limit bursts and context pressure, then proposes contextual next actions                                         |
-| **Developer intelligence** | Dependency health, full redacted Git diff, command/check history and Markdown, JSON or HTML reports                                                        |
-| **MCP API**                | 42 tools spanning usage, agents, workflow, engineering, reports, model economy and release trust                                                           |
-| **Security**               | Loopback-only dashboard, hardened Host/Origin checks, trusted executable resolution, secret-safe persistence and fail-closed release gates                 |
-| **International use**      | Expanded French/English interface messages, automatic language detection and explicit estimate provenance                                                  |
+| Area                          | v0.1.4 update                                                                                                                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Full dashboard wiring**     | All 20 sidebar routes now open a dedicated live view, backed by explicit APIs for tasks, files, checks, security, observer, dependencies, reports and settings       |
+| **Live host adapters**        | Native redacted lifecycle hooks for Claude Code, Codex and Windsurf register host activity as agents and timeline events; Cursor remains available through MCP/rules |
+| **Interactive release tools** | Run tests/builds explicitly, export redacted Markdown/JSON/HTML reports, save language/level/Safe Guard settings and inspect check history from the browser          |
+| **Reliable live stream**      | Exponential WebSocket reconnection, visible connection state and resilient malformed-update handling                                                                 |
+| **International dashboard**   | Automatic or explicit French/English navigation, page descriptions and metric labels                                                                                 |
+| **Security**                  | Same-origin mutation controls, loopback-only service, redacted hook payload policy and trusted external CLI resolution                                               |
 
-[Read the complete v0.1.3 changelog](./CHANGELOG.md#013--2026-06-29) · [Read the release notes](./docs/releases/v0.1.3.md)
+[Read the complete v0.1.4 changelog](./CHANGELOG.md#014--2026-06-30) · [Read the release notes](./docs/releases/v0.1.4.md)
 
 ---
 
@@ -394,7 +394,7 @@ corepack pnpm install
 pnpm check
 ```
 
-`pnpm check` runs lint, 28 tests — including a live MCP stdio client/server test — TypeScript build, formatting, secret scanning and attribution validation.
+`pnpm check` runs lint, 31 tests — including live MCP stdio, host-hook and complete dashboard-route tests — TypeScript build, formatting, secret scanning and attribution validation.
 
 | Guide                                | Purpose                                   |
 | ------------------------------------ | ----------------------------------------- |

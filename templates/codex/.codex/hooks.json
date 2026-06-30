@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js SessionStart codex"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js UserPromptSubmit codex"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js PreToolUse codex"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js PostToolUse codex"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js PreCompact codex"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js SubagentStart codex"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js SubagentStop codex"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .codex/hooks/codinfy-agent-monitor.js Stop codex"
+          }
+        ]
+      }
+    ]
+  }
+}

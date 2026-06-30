@@ -51,7 +51,7 @@ Les demandes complémentaires de vérification/correction et de conformité ont 
 | --------------------------------------------------------------- | -------------------------------------------- |
 | `pnpm install --frozen-lockfile`                                | ✅                                           |
 | `pnpm build`                                                    | ✅                                           |
-| `pnpm test`                                                     | ✅ 25 tests                                  |
+| `pnpm test`                                                     | ✅ 31 tests                                  |
 | `pnpm lint`                                                     | ✅                                           |
 | `pnpm format:check`                                             | ✅                                           |
 | `pnpm check`                                                    | ✅ build avant tests + secrets + attribution |

@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "pre_read_code": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js pre_read_code windsurf" }
+    ],
+    "post_read_code": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_read_code windsurf" }
+    ],
+    "pre_write_code": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js pre_write_code windsurf" }
+    ],
+    "post_write_code": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_write_code windsurf" }
+    ],
+    "pre_run_command": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js pre_run_command windsurf" }
+    ],
+    "post_run_command": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_run_command windsurf" }
+    ],
+    "pre_mcp_tool_use": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js pre_mcp_tool_use windsurf" }
+    ],
+    "post_mcp_tool_use": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_mcp_tool_use windsurf" }
+    ],
+    "pre_user_prompt": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js pre_user_prompt windsurf" }
+    ],
+    "post_cascade_response": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_cascade_response windsurf" }
+    ],
+    "post_cascade_response_with_transcript": [
+      {
+        "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_cascade_response_with_transcript windsurf"
+      }
+    ],
+    "post_setup_worktree": [
+      { "command": "node .windsurf/hooks/codinfy-agent-monitor.js post_setup_worktree windsurf" }
+    ]
+  }
+}

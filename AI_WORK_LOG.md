@@ -8,6 +8,18 @@ Product: **Codinfy Agent Monitor** · Command: `/codinfy` · MCP: `codinfy-agent
 
 ---
 
+## 2026-06-30 (v0.1.4 Full Dashboard Wiring & Live Adapters) — Codex
+
+**Type de travail :** câblage fonctionnel du dashboard, adaptateurs temps réel, sécurité navigateur et préparation de release.
+
+- Relié les 20 routes du dashboard à des panneaux dédiés et ajouté les API locales pour tâches, fichiers, checks, sécurité, Codix Observer, dépendances, rapports, historique et réglages.
+- Ajouté les actions explicites tests/build, les exports expurgés MD/JSON/HTML, la sauvegarde langue/niveau/Safe Guard et la reconnexion WebSocket exponentielle.
+- Activé les hooks natifs Claude Code, Codex et Windsurf sans stocker les prompts ou payloads ; seuls le nom d'événement borné et l'hôte sont enregistrés. Cursor reste relié par MCP/rules.
+- Renforcé les mutations HTTP avec une vérification same-origin et complété les réseaux sociaux Bakala Goin dans l'interface.
+- Passé tous les packages et la documentation de release en v0.1.4.
+
+**Validation :** lint et build verts ; 31 tests couvrant notamment les 20 routes, 14 API et hooks Windows ; QA Edge 1586×990 et 390×844 sans erreur console, requête HTTP en échec ni débordement ; réglages, export JSON et reconnexion WebSocket vérifiés. Les contrôles secret/attribution/review et la CI GitHub restent les portes finales de publication.
+
 ## 2026-06-29 (README demos + GitHub release v0.1.3) — Codex
 
 **Type de travail :** documentation visuelle, préparation de release et maintien du contrôle public-ready.

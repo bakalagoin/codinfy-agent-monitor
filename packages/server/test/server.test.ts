@@ -21,6 +21,9 @@ describe('local dashboard server', () => {
     expect(dashboard.body).toContain('AI Credit Saver');
     expect(dashboard.body).toContain('data-pages');
     expect(dashboard.body).toContain('id="pageTitle"');
+    expect(dashboard.body).toContain('id="settingsPanel"');
+    expect(dashboard.body).toContain('id="securityPanel"');
+    expect(dashboard.body).toContain('function connectLive()');
     const codinfy = await app.inject('/codinfy');
     expect(codinfy.statusCode).toBe(200);
     expect(codinfy.body).toContain('Codinfy Agent Monitor');
@@ -33,11 +36,73 @@ describe('local dashboard server', () => {
     expect(review.json()).toHaveProperty('ready');
     const git = await app.inject('/api/git');
     expect(git.statusCode).toBe(200);
+    const pages = [
+      'dashboard',
+      'agents',
+      'workflow',
+      'tasks',
+      'context',
+      'limits',
+      'models',
+      'budget',
+      'timeline',
+      'files',
+      'git',
+      'tests',
+      'build',
+      'environment',
+      'health',
+      'security',
+      'performance',
+      'reports',
+      'settings',
+      'about',
+    ];
+    for (const page of pages) expect((await app.inject(`/${page}`)).statusCode).toBe(200);
+    const apis = [
+      'status',
+      'environment',
+      'git',
+      'agents',
+      'timeline',
+      'review',
+      'tasks',
+      'files',
+      'observer',
+      'dependencies',
+      'reports',
+      'settings',
+      'checks',
+      'history',
+    ];
+    for (const api of apis) expect((await app.inject(`/api/${api}`)).statusCode).toBe(200);
+    const rejectedMutation = await app.inject({
+      method: 'POST',
+      url: '/api/settings',
+      payload: { language: 'fr', level: 'expert', safeGuard: true },
+    });
+    expect(rejectedMutation.statusCode).toBe(403);
+    const savedSettings = await app.inject({
+      method: 'POST',
+      url: '/api/settings',
+      headers: { origin: 'http://127.0.0.1', host: '127.0.0.1' },
+      payload: { language: 'fr', level: 'expert', safeGuard: true },
+    });
+    expect(savedSettings.statusCode).toBe(200);
+    expect(savedSettings.json()).toMatchObject({ language: 'fr', level: 'expert' });
+    const reportExport = await app.inject({
+      method: 'POST',
+      url: '/api/reports/export',
+      headers: { origin: 'http://127.0.0.1', host: '127.0.0.1' },
+      payload: { format: 'json' },
+    });
+    expect(reportExport.statusCode).toBe(200);
+    expect(reportExport.json().name).toMatch(/\.json$/);
     const rebound = await app.inject({ url: '/api/status', headers: { host: 'attacker.invalid' } });
     expect(rebound.statusCode).toBe(403);
     expect(dashboard.headers['x-frame-options']).toBe('DENY');
     await app.close();
     monitor.close();
     rmSync(root, { recursive: true, force: true });
-  }, 15_000);
+  }, 60_000);
 });

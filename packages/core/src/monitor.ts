@@ -43,6 +43,50 @@ export class AgentMonitor {
     });
   }
 
+  recordAdapterEvent(host: 'claude' | 'codex' | 'cursor' | 'windsurf', event: string) {
+    const hosts = {
+      claude: 'Claude Code',
+      codex: 'Codex',
+      cursor: 'Cursor',
+      windsurf: 'Windsurf',
+    } as const;
+    const name = hosts[host];
+    const normalized = event.replace(/[^a-z0-9_.-]/gi, '_').slice(0, 80) || 'activity';
+    const status: AgentStatus = /(?:end|stop|complete|response)$/i.test(normalized)
+      ? 'idle'
+      : /(?:fail|error)/i.test(normalized)
+        ? 'error'
+        : /(?:write|edit)/i.test(normalized)
+          ? 'writing'
+          : /(?:read)/i.test(normalized)
+            ? 'reading'
+            : /(?:tool|command|run)/i.test(normalized)
+              ? 'running'
+              : 'active';
+    const agent = this.store.registerAgent({
+      id: `${host}-adapter`,
+      name,
+      role: 'host-adapter',
+      status,
+      task: normalized,
+    });
+    this.store.updateConfig({ tool: name });
+    this.store.updateAgent(agent.id, {
+      status,
+      task: normalized,
+      lastAction: normalized,
+    });
+    return this.store.recordEvent(
+      `adapter.${host}.${normalized.toLowerCase()}`,
+      `${name}: ${normalized}`,
+      {
+        host,
+        event: normalized,
+        success: !/(?:fail|error)/i.test(normalized),
+      },
+    );
+  }
+
   snapshot(): MonitorSnapshot {
     const config = this.store.getConfig();
     const metrics = this.store.getMetrics();

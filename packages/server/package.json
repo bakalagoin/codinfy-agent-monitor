@@ -1,6 +1,6 @@
 {
   "name": "@codinfy/agent-monitor-server",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Local Fastify and WebSocket dashboard server",
   "type": "module",
   "main": "dist/index.js",

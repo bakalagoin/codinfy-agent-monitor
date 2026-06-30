@@ -3,10 +3,9 @@ import { spawnSync } from 'node:child_process';
 import { realpathSync, statSync } from 'node:fs';
 import { delimiter, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
-// Local observability hook: store only the event name, never stdin or host payloads.
 const allowedHosts = new Set(['claude', 'codex', 'windsurf']);
 const allowedEvents = /^[a-z0-9_.-]{1,80}$/i;
-const host = allowedHosts.has(process.argv[3]) ? process.argv[3] : 'claude';
+const host = allowedHosts.has(process.argv[3]) ? process.argv[3] : 'codex';
 const event = allowedEvents.test(process.argv[2] ?? '') ? process.argv[2] : 'Activity';
 const projectRoot = resolve(process.cwd());
 const isWithinProject = (candidate) => {
@@ -44,7 +43,6 @@ for (const rawDirectory of (process.env.PATH ?? '').split(delimiter)) {
   }
   if (binary) break;
 }
-
 if (binary) {
   const monitorArgs = ['adapter-event', host, event];
   const isBatch =
@@ -71,6 +69,4 @@ if (binary) {
     });
   }
 }
-
-// Monitoring must never block or alter the host operation.
 process.exit(0);

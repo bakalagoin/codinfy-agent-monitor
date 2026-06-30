@@ -55,7 +55,7 @@ program
   .description(
     'Codinfy Agent Monitor — real-time AI agent, workflow, usage, Git and security monitoring.',
   )
-  .version('0.1.3')
+  .version('0.1.4')
   .option('-C, --project <path>', 'project root to monitor', process.cwd())
   .showHelpAfterError();
 
@@ -186,6 +186,18 @@ program
   .action((type: string, message: string[]) => {
     withMonitor((monitor) =>
       print(monitor.store.recordEvent(type, redactSecrets(message.join(' ') || type))),
+    );
+  });
+
+program
+  .command('adapter-event <host> <event>')
+  .description('Record a safe host lifecycle event without storing raw hook payloads.')
+  .action((host: string, event: string) => {
+    if (!['claude', 'codex', 'cursor', 'windsurf'].includes(host))
+      throw new Error('Host must be claude, codex, cursor, or windsurf.');
+    if (!/^[a-z0-9_.-]{1,80}$/i.test(event)) throw new Error('Adapter event name is invalid.');
+    withMonitor((monitor) =>
+      print(monitor.recordAdapterEvent(host as 'claude' | 'codex' | 'cursor' | 'windsurf', event)),
     );
   });
 

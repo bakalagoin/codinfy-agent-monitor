@@ -4,4 +4,7 @@ args = ["mcp"]
 startup_timeout_sec = 20
 tool_timeout_sec = 120
 
+[features]
+hooks = true
+
 # Codinfy Agent Monitor · /codinfy · © CODINFY PLATFORMS SASU · codinfy.com

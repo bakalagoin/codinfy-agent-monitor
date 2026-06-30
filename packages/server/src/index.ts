@@ -1,6 +1,13 @@
+import { existsSync, lstatSync, readdirSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
-import { AgentMonitor, CODINFY_ATTRIBUTION, redactSecrets } from '@codinfy/agent-monitor-core';
+import {
+  AgentMonitor,
+  CODINFY_ATTRIBUTION,
+  getDependencyHealth,
+  redactSecrets,
+} from '@codinfy/agent-monitor-core';
 
 const PAGES = [
   'dashboard',
@@ -26,16 +33,26 @@ const PAGES = [
 ] as const;
 
 const NAVIGATION = [
-  { page: 'dashboard', label: 'Mission control', icon: '◎' },
-  { page: 'agents', label: 'Agents radar', icon: '◇' },
-  { page: 'workflow', label: 'Workflow', icon: '⌁' },
-  { page: 'models', label: 'AI Credit Saver', icon: '✦' },
-  { page: 'timeline', label: 'Timeline', icon: '◷' },
-  { page: 'git', label: 'Git & files', icon: '⑂' },
-  { page: 'security', label: 'Security', icon: '⬡' },
-  { page: 'environment', label: 'Environment', icon: '▤' },
-  { page: 'reports', label: 'Reports', icon: '▱' },
-  { page: 'about', label: 'About Codinfy', icon: 'ⓘ' },
+  { page: 'dashboard', label: 'Mission control', icon: 'MC' },
+  { page: 'agents', label: 'Agents radar', icon: 'AR' },
+  { page: 'workflow', label: 'Workflow', icon: 'WF' },
+  { page: 'tasks', label: 'Tasks', icon: 'TK' },
+  { page: 'context', label: 'Context', icon: 'CX' },
+  { page: 'limits', label: 'Usage limits', icon: 'UL' },
+  { page: 'models', label: 'Smart Model Router', icon: 'MR' },
+  { page: 'budget', label: 'AI Credit Saver', icon: 'CS' },
+  { page: 'timeline', label: 'Timeline', icon: 'TL' },
+  { page: 'files', label: 'Modified files', icon: 'FL' },
+  { page: 'git', label: 'Git status', icon: 'GT' },
+  { page: 'tests', label: 'Tests', icon: 'TS' },
+  { page: 'build', label: 'Build', icon: 'BD' },
+  { page: 'environment', label: 'Environment', icon: 'EN' },
+  { page: 'health', label: 'Release health', icon: 'HL' },
+  { page: 'security', label: 'Security', icon: 'SC' },
+  { page: 'performance', label: 'Codix Observer', icon: 'OB' },
+  { page: 'reports', label: 'Reports', icon: 'RP' },
+  { page: 'settings', label: 'Settings', icon: 'ST' },
+  { page: 'about', label: 'About Codinfy', icon: 'CO' },
 ] as const;
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
@@ -67,6 +84,24 @@ function isAllowedWebSocketOrigin(request: FastifyRequest): boolean {
   }
 }
 
+function isAllowedMutationOrigin(request: FastifyRequest): boolean {
+  return Boolean(request.headers.origin) && isAllowedWebSocketOrigin(request);
+}
+
+function listReports(monitor: AgentMonitor) {
+  const directory = join(monitor.store.dataRoot, 'reports');
+  if (!existsSync(directory) || lstatSync(directory).isSymbolicLink()) return [];
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && !entry.isSymbolicLink())
+    .map((entry) => {
+      const path = join(directory, entry.name);
+      const stats = lstatSync(path);
+      return { name: entry.name, size: stats.size, updatedAt: stats.mtime.toISOString() };
+    })
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 20);
+}
+
 function dashboardHtml(): string {
   const navigation = NAVIGATION.map(
     ({ page, label, icon }) =>
@@ -89,8 +124,9 @@ function dashboardHtml(): string {
 .saver-panel{border-color:rgba(156,112,255,.27);background:linear-gradient(145deg,rgba(36,22,68,.62),rgba(11,21,38,.76))}.saver-model{font:700 18px "Cascadia Code",Consolas,monospace;color:#c9b6ff;margin-bottom:6px}.score-line{display:flex;align-items:center;justify-content:space-between;color:#7e94a6;font-size:10px}.saving{margin:16px 0;display:flex;align-items:end;gap:8px}.saving strong{font:750 32px/1 "Cascadia Code",Consolas,monospace;color:var(--green)}.saving span{color:#7890a3;font-size:10px;padding-bottom:3px}.reason-list{margin:0;padding:0;list-style:none;display:grid;gap:7px}.reason-list li{font-size:10px;line-height:1.45;color:#91a7b7}.reason-list li:before{content:"✓";color:var(--green);margin-right:7px}.action-link{display:inline-flex;align-items:center;justify-content:center;margin-top:15px;height:34px;padding:0 13px;border:1px solid rgba(166,120,255,.38);border-radius:9px;color:#d6c5ff;background:rgba(128,77,242,.12);text-decoration:none;font-size:10px}
 .health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.health-item{min-height:82px;padding:13px;border:1px solid rgba(109,161,201,.15);border-radius:11px;background:rgba(4,13,23,.3)}.health-icon{font-size:20px;margin-bottom:8px}.health-name{font:600 9px "Cascadia Code",Consolas,monospace;color:#7891a4;text-transform:uppercase}.health-value{margin-top:4px;font-size:11px;font-weight:650}.healthy{color:var(--green)}.warning{color:var(--amber)}.danger{color:var(--red)}
 .git-summary{display:grid;gap:12px}.git-branch{font:700 18px "Cascadia Code",Consolas,monospace}.git-stat{display:flex;gap:8px;flex-wrap:wrap}.mini-stat{padding:6px 8px;border:1px solid var(--line);border-radius:8px;color:#829daf;font:9px "Cascadia Code",Consolas,monospace}.code-line{padding:10px;border-radius:9px;background:#050d17;border:1px solid rgba(108,164,205,.12);color:#6e8799;font:9px/1.5 "Cascadia Code",Consolas,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.env-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.env-item{padding:11px;border-left:2px solid rgba(66,213,255,.45);background:rgba(4,13,23,.28)}.env-label{color:#607d91;font:8px "Cascadia Code",Consolas,monospace;text-transform:uppercase}.env-value{margin-top:4px;color:#bdd3df;font-size:11px;word-break:break-word}.about-copy{max-width:760px;color:#91a8b7;font-size:12px;line-height:1.7}.socials{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}.social{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:9px;color:#9cb4c4;text-decoration:none;font:9px "Cascadia Code",Consolas,monospace}.social:hover{border-color:var(--line-hot);color:white}.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:18px;padding:20px 3px;color:#587386;font:9px "Cascadia Code",Consolas,monospace;border-top:1px solid var(--line)}.footer strong{color:#7794a9;font-weight:500}.page-block.is-hidden{display:none!important}
+.nav-list{overflow-y:auto;min-height:0;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(66,213,255,.28) transparent}.nav-link{min-height:36px;font-size:11px}.nav-icon{display:grid;place-items:center;width:24px;height:22px;border:1px solid rgba(118,174,218,.16);border-radius:7px;font:700 7px "Cascadia Code",Consolas,monospace}.sidebar-spacer{min-height:8px}.panel.wide-panel{grid-column:1/-1}.panel.split-panel{grid-column:span 6}.data-list{display:grid;gap:8px}.data-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px;border:1px solid rgba(109,161,201,.15);border-radius:11px;background:rgba(4,13,23,.3)}.data-main{min-width:0}.data-title{font:650 11px "Cascadia Code",Consolas,monospace;color:#c4dce9;overflow-wrap:anywhere}.data-copy{margin-top:5px;color:#6f899c;font-size:10px;line-height:1.5;overflow-wrap:anywhere}.data-meta{color:#7896aa;font:9px "Cascadia Code",Consolas,monospace;text-align:right}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.button{appearance:none;border:1px solid rgba(92,179,235,.3);border-radius:9px;background:rgba(31,88,126,.14);color:#b9d8e9;min-height:35px;padding:0 13px;font:650 9px "Cascadia Code",Consolas,monospace;cursor:pointer}.button:hover{border-color:var(--line-hot);color:white}.button.primary{background:linear-gradient(135deg,rgba(40,156,226,.24),rgba(103,93,255,.2));color:#e9faff}.button:disabled{opacity:.45;cursor:wait}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:grid;gap:7px;color:#7590a3;font:9px "Cascadia Code",Consolas,monospace}.field select,.field input{width:100%;min-height:40px;border:1px solid var(--line);border-radius:9px;background:#07121f;color:#d8edf7;padding:0 11px}.switch-field{display:flex;align-items:center;gap:9px;min-height:40px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:#07121f}.notice{padding:12px;border:1px solid rgba(66,213,255,.18);border-radius:10px;background:rgba(36,111,154,.08);color:#7f9bad;font-size:10px;line-height:1.55}.output{max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:9px/1.55 "Cascadia Code",Consolas,monospace;color:#87a4b6;background:#050d17;border:1px solid rgba(108,164,205,.12);border-radius:10px;padding:13px}
 @media(max-width:1250px){.metrics{grid-template-columns:repeat(2,1fr)}.panel.workflow-panel{grid-column:span 8}.panel.agents-panel{grid-column:span 4}.panel.timeline-panel{grid-column:span 4}.panel.saver-panel{grid-column:span 4}.panel.health-panel{grid-column:span 4}.panel.git-panel{grid-column:span 4}.panel.environment-panel,.panel.about-panel{grid-column:span 6}}
-@media(max-width:860px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;z-index:50;width:242px;transform:translateX(-105%);transition:transform .25s ease}.sidebar.open{transform:translateX(0)}.main{padding:0 14px 26px}.mobile-menu{display:grid;place-items:center}.top-chip.time{display:none}.metrics{grid-template-columns:1fr 1fr}.panel.workflow-panel,.panel.agents-panel,.panel.timeline-panel,.panel.saver-panel,.panel.health-panel,.panel.git-panel,.panel.environment-panel,.panel.about-panel{grid-column:1/-1}.view-head{align-items:flex-start;flex-direction:column}.identity-strip{justify-content:flex-start}.footer{align-items:flex-start;flex-direction:column}}
+@media(max-width:860px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;z-index:50;width:242px;transform:translateX(-105%);transition:transform .25s ease}.sidebar.open{transform:translateX(0)}.main{padding:0 14px 26px}.mobile-menu{display:grid;place-items:center}.top-chip.time{display:none}.metrics{grid-template-columns:1fr 1fr}.panel.workflow-panel,.panel.agents-panel,.panel.timeline-panel,.panel.saver-panel,.panel.health-panel,.panel.git-panel,.panel.environment-panel,.panel.about-panel,.panel.split-panel{grid-column:1/-1}.form-grid{grid-template-columns:1fr}.view-head{align-items:flex-start;flex-direction:column}.identity-strip{justify-content:flex-start}.footer{align-items:flex-start;flex-direction:column}}
 @media(max-width:540px){.topbar{height:62px}.top-actions .top-chip:not(.live){display:none}.metrics{grid-template-columns:1fr}.metric{min-height:106px}.dashboard-grid{display:block}.panel{margin-bottom:12px}.identity-token:last-child{display:none}.main{padding-left:10px;padding-right:10px}.view-head{padding-top:18px}.footer{line-height:1.6}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
 </style></head><body>
@@ -133,9 +169,42 @@ function drawHealth(review){const values=[['Public ready',review.ready],['Tests'
 function drawEnvironment(environment){const items=[['Type',environment.type],['Operating system',environment.os],['Shell',environment.shell],['Long-running processes',environment.longRunningProcesses?'available':'limited'],['Detected stacks',(environment.detectedStacks||[]).join(', ')||'None detected'],['Node',environment.tools?.node||'unavailable']];document.getElementById('environment').innerHTML=items.map((item)=>'<div class="env-item"><div class="env-label">'+safe(item[0])+'</div><div class="env-value">'+safe(item[1])+'</div></div>').join('')}
 function routePage(){const raw=location.pathname.replace(/^\\//,'')||'dashboard';const page=aliases[raw]||raw;const meta=routeMeta[page]||routeMeta.dashboard;document.getElementById('pageTitle').textContent=meta[0];document.getElementById('pageCopy').textContent=meta[1];document.querySelectorAll('.page-block').forEach((block)=>{const pages=(block.getAttribute('data-pages')||'').split(' ');block.classList.toggle('is-hidden',page!=='dashboard'&&!pages.includes(page))});document.querySelectorAll('.nav-link').forEach((link)=>link.classList.toggle('active',link.dataset.route===page));document.getElementById('sidebar').classList.remove('open')}
 async function requestJson(path){const response=await fetch(path,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error(path+' returned '+response.status);return response.json()}
+const extraPanels='<section id="taskPanel" class="panel wide-panel page-block" data-pages="tasks"><div class="panel-head"><h2 class="panel-title"><b>TK</b> Task registry</h2><span class="panel-meta" id="taskMeta">Live data</span></div><div class="panel-body"><div class="data-list" id="taskRows"></div></div></section>'+
+'<section id="filesPanel" class="panel wide-panel page-block" data-pages="files"><div class="panel-head"><h2 class="panel-title"><b>FL</b> Modified files</h2><span class="panel-meta">Git working tree</span></div><div class="panel-body"><div class="data-list" id="fileRows"></div></div></section>'+
+'<section id="checksPanel" class="panel wide-panel page-block" data-pages="tests build"><div class="panel-head"><h2 class="panel-title"><b>CI</b> Tests &amp; build</h2><span class="panel-meta">Explicit local execution</span></div><div class="panel-body"><div class="toolbar"><button class="button primary" id="runTests">Run tests</button><button class="button primary" id="runBuild">Run build</button><span class="panel-meta" id="checkStatus">Last recorded results</span></div><div class="data-list" id="checkRows"></div><pre class="output" id="checkOutput">Select a check to run it locally.</pre></div></section>'+
+'<section id="securityPanel" class="panel wide-panel page-block" data-pages="security"><div class="panel-head"><h2 class="panel-title"><b>SC</b> Security center</h2><span class="panel-meta">Secrets + attribution + Safe Guard</span></div><div class="panel-body"><div class="data-list" id="securityRows"></div><div class="notice" style="margin-top:12px">No secret value is rendered by the dashboard. Review and scan results are redacted before transport.</div></div></section>'+
+'<section id="observerPanel" class="panel split-panel page-block" data-pages="performance"><div class="panel-head"><h2 class="panel-title"><b>OB</b> Codix Observer</h2><span class="panel-meta">Blockers</span></div><div class="panel-body"><div class="data-list" id="observerRows"></div></div></section>'+
+'<section id="performancePanel" class="panel split-panel page-block" data-pages="performance"><div class="panel-head"><h2 class="panel-title"><b>PF</b> Live performance</h2><span class="panel-meta">Estimated usage identified</span></div><div class="panel-body"><div class="env-grid" id="performanceRows"></div></div></section>'+
+'<section id="dependenciesPanel" class="panel wide-panel page-block" data-pages="environment"><div class="panel-head"><h2 class="panel-title"><b>DP</b> Dependency adapter</h2><span class="panel-meta">Read-only inspection</span></div><div class="panel-body"><div class="data-list" id="dependencyRows"></div></div></section>'+
+'<section id="reportsPanel" class="panel split-panel page-block" data-pages="reports"><div class="panel-head"><h2 class="panel-title"><b>RP</b> Redacted reports</h2><span class="panel-meta">Local exports</span></div><div class="panel-body"><div class="toolbar"><button class="button" data-report="md">Export MD</button><button class="button" data-report="json">Export JSON</button><button class="button" data-report="html">Export HTML</button></div><div class="data-list" id="reportRows"></div></div></section>'+
+'<section id="historyPanel" class="panel split-panel page-block" data-pages="reports"><div class="panel-head"><h2 class="panel-title"><b>HX</b> Check history</h2><span class="panel-meta">Tests, builds, reports</span></div><div class="panel-body"><div class="data-list" id="historyRows"></div></div></section>'+
+'<section id="settingsPanel" class="panel wide-panel page-block" data-pages="settings"><div class="panel-head"><h2 class="panel-title"><b>ST</b> Monitor settings</h2><span class="panel-meta">Stored locally</span></div><div class="panel-body"><div class="form-grid"><label class="field">Language<select id="settingLanguage"><option value="auto">Auto</option><option value="fr">Francais</option><option value="en">English</option></select></label><label class="field">Experience level<select id="settingLevel"><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="expert">Expert</option></select></label><label class="field">Safe Guard<span class="switch-field"><input id="settingSafeGuard" type="checkbox"> Review before commit</span></label></div><div class="toolbar" style="margin-top:14px"><button class="button primary" id="saveSettings">Save settings</button><span class="panel-meta" id="settingsStatus">Local configuration</span></div></div></section>';
+document.querySelector('.dashboard-grid').insertAdjacentHTML('beforeend',extraPanels);
+document.querySelector('.socials').insertAdjacentHTML('beforeend','<a class="social" href="https://facebook.com/bakalagoin">f @bakalagoin</a><a class="social" href="https://instagram.com/bakalagoin">IG @bakalagoin</a><a class="social" href="https://linkedin.com/in/bakala-goin">in bakala-goin</a>');
+let lastSnapshot=null;
+let activeLanguage='en';
+const routeMetaFr={dashboard:['Centre de mission','Opérations des agents, limites et sécurité de publication en temps réel.'],agents:['Radar des agents','Agents actifs, en veille, bloqués et terminés.'],workflow:['Workflow','Responsabilités, progression et blocages en une vue.'],tasks:['Tâches','Toutes les tâches surveillées et leur progression.'],context:['Contexte utilisé','Pression de contexte officielle ou estimée.'],limits:["Limites d'utilisation",'Débit actuel et limites journalières et hebdomadaires.'],models:['Smart Model Router','Score de besoin, recommandation et économie estimée.'],budget:['AI Credit Saver','Économisez tokens et crédits sans changement automatique.'],timeline:['Chronologie','Historique local et temps réel des actions.'],files:['Fichiers modifiés','Fichiers visibles par Git dans le projet courant.'],git:['État Git','Branche, remote, commit et arbre de travail.'],tests:['Tests','Dernier résultat et exécution locale explicite.'],build:['Build','Dernier résultat et exécution locale explicite.'],environment:['Environnement','Hôte, système, outils et stacks détectées.'],health:['Santé du projet','État complet avant commit.'],security:['Centre de sécurité','Secrets, attribution et Safe Guard.'],performance:['Performance','Observer, usage, workflow et charge active.'],reports:['Rapports','Exports locaux expurgés et historique.'],settings:['Réglages','Langue, niveau et Safe Guard.'],about:['À propos de Codinfy','Produit, créateur et réseaux officiels.']};
+const navLabelsFr={dashboard:'Centre de mission',agents:'Radar des agents',workflow:'Workflow',tasks:'Tâches',context:'Contexte',limits:'Limites',models:'Smart Model Router',budget:'AI Credit Saver',timeline:'Chronologie',files:'Fichiers modifiés',git:'État Git',tests:'Tests',build:'Build',environment:'Environnement',health:'Santé publication',security:'Sécurité',performance:'Codix Observer',reports:'Rapports',settings:'Réglages',about:'À propos de Codinfy'};
+const dedicatedPanels={tasks:['taskPanel'],files:['filesPanel'],tests:['checksPanel'],build:['checksPanel'],security:['securityPanel'],performance:['observerPanel','performancePanel'],reports:['reportsPanel','historyPanel'],settings:['settingsPanel']};
+function dataRows(items,emptyMessage){if(!items.length)return '<div class="empty">'+safe(emptyMessage)+'</div>';return items.map((item)=>'<div class="data-row"><div class="data-main"><div class="data-title">'+safe(item.title)+'</div><div class="data-copy">'+safe(item.copy||'')+'</div></div><div class="data-meta">'+safe(item.meta||'')+'</div></div>').join('')}
+function drawSnapshot(snapshot){lastSnapshot=snapshot;document.getElementById('projectToken').textContent=(activeLanguage==='fr'?'Projet: ':'Project: ')+snapshot.project;document.getElementById('sessionToken').textContent='Session: '+snapshot.session;document.getElementById('toolToken').textContent='Tool: '+snapshot.tool;document.getElementById('metrics').innerHTML=metricCards(snapshot.metrics);document.getElementById('workflow').innerHTML=workflowRows(snapshot.tasks);document.getElementById('workflowMeta').textContent=snapshot.workflowProgress+'% complete';document.getElementById('agents').innerHTML=agentRows(snapshot.agents);document.getElementById('agentMeta').textContent=snapshot.agents.length+' agents';document.getElementById('timeline').innerHTML=timelineRows(snapshot.timeline);document.getElementById('advice').innerHTML=adviceCard(snapshot.advice);document.getElementById('git').innerHTML=gitCard(snapshot.git);document.getElementById('taskRows').innerHTML=dataRows(snapshot.tasks.map((task)=>({title:task.title,copy:'Progress '+task.progress+'%'+(task.agentId?' - '+task.agentId:''),meta:task.status})),activeLanguage==='fr'?'Aucune tache surveillee.':'No monitored task.');document.getElementById('taskMeta').textContent=snapshot.tasks.length+' tasks';document.getElementById('fileRows').innerHTML=dataRows((snapshot.git.files||[]).map((file)=>({title:file,copy:'Git working tree',meta:'modified'})),activeLanguage==='fr'?'Aucun fichier modifie.':'No modified file.');const perf=[['Context',snapshot.metrics.context.value+'%'],['Current rate',snapshot.metrics.rate.value+'%'],['Workflow',snapshot.workflowProgress+'%'],['Active agents',snapshot.agents.filter((agent)=>!['idle','done'].includes(agent.status)).length],['Errors',snapshot.errors],['Blockers',snapshot.blockers]];document.getElementById('performanceRows').innerHTML=perf.map((item)=>'<div class="env-item"><div class="env-label">'+safe(item[0])+'</div><div class="env-value">'+safe(item[1])+'</div></div>').join('')}
+function drawChecks(payload){drawHealth(payload.review);const rows=[['Tests',payload.review.tests,payload.tests?.createdAt],['Build',payload.review.build,payload.build?.createdAt],['Public ready',payload.review.ready?'ready':'blocked','pre-commit review']];document.getElementById('checkRows').innerHTML=dataRows(rows.map((row)=>({title:row[0],copy:row[2]?String(row[2]):'No recorded run',meta:row[1]})),'No check recorded.');const missing=Object.entries(payload.review.attributionMissing||{}).flatMap(([file,values])=>values.map((value)=>file+': '+value));const security=[{title:'Secret scanner',copy:payload.review.secretFindings.length?payload.review.secretFindings.length+' redacted finding(s)':'No secret finding',meta:payload.review.secretFindings.length?'review':'clear'},{title:'Attribution',copy:missing.length?missing.join(' | '):'Mandatory identity present',meta:missing.length?'review':'clear'},{title:'Sensitive files',copy:(payload.review.sensitiveFiles||[]).join(', ')||'No sensitive changed path',meta:(payload.review.sensitiveFiles||[]).length}];document.getElementById('securityRows').innerHTML=dataRows(security,'Security review unavailable.')}
+function drawObserver(report){const blockers=(report.blockers||[]).map((blocker)=>({title:blocker.kind,copy:blocker.message,meta:blocker.severity}));const recommendations=(report.recommendations||[]).map((message)=>({title:'Recommendation',copy:message,meta:'advice'}));document.getElementById('observerRows').innerHTML=dataRows(blockers.concat(recommendations),'No blocker detected.')}
+function drawDependencies(data){document.getElementById('dependencyRows').innerHTML=dataRows([{title:'Package manager',copy:data.lockfile||'No lockfile detected',meta:data.manager},{title:'Outdated command',copy:data.outdatedCommand,meta:'not executed'},{title:'Audit command',copy:data.auditCommand,meta:'not executed'}],'Dependency data unavailable.')}
+function drawReports(reports){document.getElementById('reportRows').innerHTML=dataRows(reports.map((report)=>({title:report.name,copy:new Date(report.updatedAt).toLocaleString(),meta:Math.max(1,Math.round(report.size/1024))+' KB'})),'No report exported yet.')}
+function drawHistory(events){document.getElementById('historyRows').innerHTML=dataRows(events.map((event)=>({title:event.type,copy:event.message,meta:new Date(event.createdAt).toLocaleTimeString()})),'No check history yet.')}
+function drawSettings(settings){document.getElementById('settingLanguage').value=settings.language;document.getElementById('settingLevel').value=settings.level;document.getElementById('settingSafeGuard').checked=settings.safeGuard;activeLanguage=settings.language==='auto'?settings.detectedLanguage:settings.language;document.documentElement.lang=activeLanguage;metricMeta.context[0]=activeLanguage==='fr'?'Contexte utilisé':'Context used';metricMeta.rate[0]=activeLanguage==='fr'?'Débit actuel':'Current rate';metricMeta.daily[0]=activeLanguage==='fr'?'Limite journalière':'Daily limit';metricMeta.weekly[0]=activeLanguage==='fr'?'Limite hebdomadaire':'Weekly limit';document.querySelectorAll('.nav-link').forEach((link)=>{if(activeLanguage==='fr'&&navLabelsFr[link.dataset.route])link.querySelector('.nav-label').textContent=navLabelsFr[link.dataset.route]});routePage();if(lastSnapshot)drawSnapshot(lastSnapshot)}
+function drawEnvironmentLive(environment){drawEnvironment(environment)}
+function routePage(){const raw=location.pathname.replace(/^[/]/,'')||'dashboard';const page=aliases[raw]||raw;const meta=(activeLanguage==='fr'?routeMetaFr:routeMeta)[page]||(activeLanguage==='fr'?routeMetaFr.dashboard:routeMeta.dashboard);document.getElementById('pageTitle').textContent=meta[0];document.getElementById('pageCopy').textContent=meta[1];document.querySelectorAll('.page-block').forEach((block)=>{const dedicated=dedicatedPanels[page];const pages=(block.getAttribute('data-pages')||'').split(' ');const visible=dedicated?dedicated.includes(block.id):page==='dashboard'?pages.includes('dashboard'):pages.includes(page);block.classList.toggle('is-hidden',!visible)});document.querySelectorAll('.nav-link').forEach((link)=>link.classList.toggle('active',link.dataset.route===page));document.getElementById('sidebar').classList.remove('open')}
+async function postJson(path,body){const response=await fetch(path,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});if(!response.ok)throw new Error(path+' returned '+response.status);return response.json()}
+async function loadDetails(){const results=await Promise.allSettled([requestJson('/api/checks'),requestJson('/api/environment'),requestJson('/api/observer'),requestJson('/api/dependencies'),requestJson('/api/reports'),requestJson('/api/settings'),requestJson('/api/history')]);if(results[0].status==='fulfilled')drawChecks(results[0].value);if(results[1].status==='fulfilled')drawEnvironmentLive(results[1].value);if(results[2].status==='fulfilled')drawObserver(results[2].value);if(results[3].status==='fulfilled')drawDependencies(results[3].value);if(results[4].status==='fulfilled')drawReports(results[4].value);if(results[5].status==='fulfilled')drawSettings(results[5].value);if(results[6].status==='fulfilled')drawHistory(results[6].value)}
+document.querySelectorAll('[data-report]').forEach((button)=>button.addEventListener('click',async()=>{button.disabled=true;try{const result=await postJson('/api/reports/export',{format:button.dataset.report});drawReports(result.reports);drawHistory(await requestJson('/api/history'))}catch(error){document.getElementById('reportRows').innerHTML='<div class="empty">'+safe(error.message)+'</div>'}finally{button.disabled=false}}));
+document.getElementById('saveSettings').addEventListener('click',async()=>{const button=document.getElementById('saveSettings');button.disabled=true;document.getElementById('settingsStatus').textContent='Saving...';try{const settings=await postJson('/api/settings',{language:document.getElementById('settingLanguage').value,level:document.getElementById('settingLevel').value,safeGuard:document.getElementById('settingSafeGuard').checked});drawSettings(settings);document.getElementById('settingsStatus').textContent='Saved locally'}catch(error){document.getElementById('settingsStatus').textContent=error.message}finally{button.disabled=false}});
+async function runCheck(kind){const button=document.getElementById(kind==='tests'?'runTests':'runBuild');button.disabled=true;document.getElementById('checkStatus').textContent='Running '+kind+'...';try{const result=await postJson('/api/checks/'+kind,{});document.getElementById('checkOutput').textContent=result.output||'No output.';drawChecks(await requestJson('/api/checks'));document.getElementById('checkStatus').textContent=result.success?'Passed':'Failed'}catch(error){document.getElementById('checkOutput').textContent=error.message;document.getElementById('checkStatus').textContent='Unavailable'}finally{button.disabled=false}}
+document.getElementById('runTests').addEventListener('click',()=>runCheck('tests'));document.getElementById('runBuild').addEventListener('click',()=>runCheck('build'));
 routePage();document.getElementById('menuButton').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));setInterval(()=>{document.getElementById('clock').textContent=new Date().toISOString().slice(11,19)+' UTC'},1000);
-requestJson('/api/status').then((snapshot)=>{draw(snapshot);document.getElementById('systemStatus').textContent='All systems connected';setTimeout(()=>requestJson('/api/review').then(drawHealth).catch(()=>{document.getElementById('health').innerHTML='<div class="empty">Release review is temporarily unavailable.</div>'}),120);setTimeout(()=>requestJson('/api/environment').then(drawEnvironment).catch(()=>{document.getElementById('environment').innerHTML='<div class="empty">Environment detection is temporarily unavailable.</div>'}),280)}).catch(()=>{document.getElementById('systemStatus').textContent='Local API unavailable';document.getElementById('connectionLabel').textContent='Offline'});
-const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');ws.onopen=()=>{document.getElementById('connectionLabel').textContent='Live'};ws.onmessage=(event)=>draw(JSON.parse(event.data));ws.onclose=()=>{document.getElementById('connectionLabel').textContent='Reconnecting';document.getElementById('systemStatus').textContent='Live stream disconnected'};ws.onerror=()=>{document.getElementById('connectionLabel').textContent='Offline'};
+requestJson('/api/status').then((snapshot)=>{drawSnapshot(snapshot);document.getElementById('systemStatus').textContent='All systems connected';return loadDetails()}).catch(()=>{document.getElementById('systemStatus').textContent='Local API unavailable';document.getElementById('connectionLabel').textContent='Offline'});
+let liveSocket;let reconnectAttempt=0;let reconnectTimer;function connectLive(){clearTimeout(reconnectTimer);liveSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');liveSocket.onopen=()=>{reconnectAttempt=0;document.getElementById('connectionLabel').textContent='Live';document.getElementById('systemStatus').textContent='All systems connected'};liveSocket.onmessage=(event)=>{try{drawSnapshot(JSON.parse(event.data))}catch{document.getElementById('systemStatus').textContent='Invalid live update ignored'}};liveSocket.onclose=()=>{document.getElementById('connectionLabel').textContent='Reconnecting';document.getElementById('systemStatus').textContent='Live stream disconnected';const delay=Math.min(10000,1000*Math.pow(2,reconnectAttempt++));reconnectTimer=setTimeout(connectLive,delay)};liveSocket.onerror=()=>{document.getElementById('connectionLabel').textContent='Offline'}}connectLive();
 </script></body></html>`;
 }
 
@@ -175,6 +244,94 @@ export async function createLocalServer(monitor = new AgentMonitor()): Promise<F
     JSON.parse(redactSecrets(JSON.stringify(monitor.store.timeline(50)))),
   );
   app.get('/api/review', async () => JSON.parse(redactSecrets(JSON.stringify(monitor.review()))));
+  app.get('/api/tasks', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.snapshot().tasks))),
+  );
+  app.get('/api/files', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.snapshot().git.files))),
+  );
+  app.get('/api/observer', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(monitor.observer()))),
+  );
+  app.get('/api/dependencies', async () =>
+    JSON.parse(
+      redactSecrets(JSON.stringify(getDependencyHealth(monitor.store.projectRoot, false))),
+    ),
+  );
+  app.get('/api/reports', async () =>
+    JSON.parse(redactSecrets(JSON.stringify(listReports(monitor)))),
+  );
+  app.get('/api/settings', async () => {
+    const config = monitor.store.getConfig();
+    return JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          language: config.language,
+          detectedLanguage: monitor.language,
+          level: config.level,
+          safeGuard: config.safeGuard,
+          tool: config.tool,
+          currentModel: config.currentModel,
+        }),
+      ),
+    );
+  });
+  app.get('/api/checks', async () =>
+    JSON.parse(
+      redactSecrets(
+        JSON.stringify({
+          review: monitor.review(),
+          tests: monitor.store.latestEvent('check.tests'),
+          build: monitor.store.latestEvent('check.build'),
+        }),
+      ),
+    ),
+  );
+  app.get('/api/history', async () => {
+    const events = monitor.store
+      .timeline(200)
+      .filter((event) => /(?:check|test|build|command|report)/i.test(event.type))
+      .slice(0, 50);
+    return JSON.parse(redactSecrets(JSON.stringify(events)));
+  });
+  app.post<{
+    Body: { language?: string; level?: string; safeGuard?: boolean };
+  }>('/api/settings', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    const language = request.body?.language;
+    const level = request.body?.level;
+    const safeGuard = request.body?.safeGuard;
+    if (!language || !['auto', 'fr', 'en'].includes(language))
+      return reply.code(400).send({ error: 'Invalid language.' });
+    if (!level || !['beginner', 'intermediate', 'expert'].includes(level))
+      return reply.code(400).send({ error: 'Invalid user level.' });
+    if (typeof safeGuard !== 'boolean')
+      return reply.code(400).send({ error: 'Invalid Safe Guard value.' });
+    const config = monitor.store.updateConfig({
+      language: language as 'auto' | 'fr' | 'en',
+      level: level as 'beginner' | 'intermediate' | 'expert',
+      safeGuard,
+    });
+    return { language: config.language, detectedLanguage: monitor.language, level, safeGuard };
+  });
+  app.post<{ Body: { format?: string } }>('/api/reports/export', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    const format = request.body?.format;
+    if (!format || !['md', 'json', 'html'].includes(format))
+      return reply.code(400).send({ error: 'Invalid report format.' });
+    const path = monitor.exportReport(true, format as 'md' | 'json' | 'html');
+    return { name: basename(path), reports: listReports(monitor) };
+  });
+  app.post<{ Params: { kind: string } }>('/api/checks/:kind', async (request, reply) => {
+    if (!isAllowedMutationOrigin(request))
+      return reply.code(403).send({ error: 'Same-origin browser request required.' });
+    if (!['tests', 'build'].includes(request.params.kind))
+      return reply.code(400).send({ error: 'Invalid check kind.' });
+    const result = monitor.runProjectScript(request.params.kind as 'tests' | 'build');
+    return JSON.parse(redactSecrets(JSON.stringify(result)));
+  });
   app.get('/ws', { websocket: true }, (socket, request) => {
     if (!isAllowedWebSocketOrigin(request)) {
       socket.close(1008, 'Origin not allowed');
