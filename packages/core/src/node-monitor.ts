@@ -532,15 +532,13 @@ export function scanNodeServers(projectRoot = process.cwd()): NodeServerReport {
     const inventory = process.platform === 'win32' ? windowsInventory(root) : unixInventory(root);
     return analyzeNodeInventory(inventory);
   } catch (error) {
-    return analyzeNodeInventory(
-      {
-        processes: [],
-        listeners: [],
-        warnings: [
-          `Node inventory failed: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
-        ],
-      },
-    );
+    return analyzeNodeInventory({
+      processes: [],
+      listeners: [],
+      warnings: [
+        `Node inventory failed: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
+      ],
+    });
   }
 }
 

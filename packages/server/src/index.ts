@@ -315,7 +315,9 @@ export async function createLocalServer(monitor = new AgentMonitor()): Promise<F
           } else if (!nodeReportCache) {
             nodeReportCache = {
               ...emptyNodeReport(),
-              warnings: [`Node inventory failed: ${redactSecrets(result.error ?? 'unknown error')}`],
+              warnings: [
+                `Node inventory failed: ${redactSecrets(result.error ?? 'unknown error')}`,
+              ],
             };
           }
           finish();
